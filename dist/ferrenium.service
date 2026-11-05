@@ -14,11 +14,15 @@ Group=git
 RuntimeDirectory=ferrenium
 RuntimeDirectoryMode=0755
 
-# Read-only sandbox: ferrenium never writes to disk.
+# Read-only sandbox: ferrenium never writes to disk. Check the result with
+# `systemd-analyze security ferrenium.service`.
 ProtectSystem=strict
+# The repositories live in /home/git. With a scan_path outside /home, use
+# ProtectHome=yes instead.
 ProtectHome=read-only
 PrivateTmp=yes
 PrivateDevices=yes
+DevicePolicy=closed
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectKernelLogs=yes
@@ -37,7 +41,15 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# Only the reverse proxy on this host talks to ferrenium, and ferrenium
+# opens no outbound connections. Widen this if Caddy runs elsewhere.
+IPAddressDeny=any
+IPAddressAllow=localhost
+RemoveIPC=yes
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

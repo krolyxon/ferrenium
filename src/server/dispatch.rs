@@ -108,15 +108,15 @@ pub async fn dispatch(State(state): State<Arc<AppState>>, req: Request) -> Respo
         return clone::serve(state.clone(), repo, rest, req).await;
     }
     if !matches!(*req.method(), Method::GET | Method::HEAD) {
-        return StatusCode::METHOD_NOT_ALLOWED.into_response();
+        return error::method_not_allowed(&state);
     }
     let query = Query::<PageQuery>::try_from_uri(req.uri())
         .map(|q| q.0)
         .unwrap_or_default();
     let heavy = if is_heavy(&rest, &query) {
-        match state.heavy_permits.clone().acquire_owned().await {
-            Ok(permit) => Some(permit),
-            Err(_) => return error::page(&state, StatusCode::SERVICE_UNAVAILABLE, "SHUTTING DOWN"),
+        match state.heavy_permit().await {
+            Some(permit) => Some(permit),
+            None => return error::busy(&state),
         }
     } else {
         None

@@ -6,7 +6,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 pub const PAGE_CSP: &str = "default-src 'self'; img-src 'self' https: data:; script-src 'self'; \
      object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 
-pub fn layers() -> [SetResponseHeaderLayer<HeaderValue>; 4] {
+pub fn layers() -> [SetResponseHeaderLayer<HeaderValue>; 5] {
     let set = |name: HeaderName, value: &'static str| {
         SetResponseHeaderLayer::if_not_present(name, HeaderValue::from_static(value))
     };
@@ -15,5 +15,9 @@ pub fn layers() -> [SetResponseHeaderLayer<HeaderValue>; 4] {
         set(header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
         set(header::REFERRER_POLICY, "same-origin"),
         set(header::X_FRAME_OPTIONS, "DENY"),
+        set(
+            HeaderName::from_static("cross-origin-opener-policy"),
+            "same-origin",
+        ),
     ]
 }

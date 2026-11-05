@@ -23,6 +23,9 @@ use crate::state::AppState;
 
 /// CGI response headers larger than this are an error.
 const MAX_HEADER_BYTES: usize = 64 * 1024;
+/// Fetch negotiations larger than this are refused (about a million
+/// `have` lines; a normal clone sends a few kilobytes).
+const MAX_REQUEST_BYTES: u64 = 64 * 1024 * 1024;
 
 /// Whether `rest` (the path after the repository) is a clone endpoint.
 pub fn is_clone_path(rest: &[Vec<u8>]) -> bool {
@@ -64,8 +67,21 @@ pub async fn serve(
         _ => return StatusCode::METHOD_NOT_ALLOWED.into_response(),
     };
 
-    let Ok(permit) = state.heavy_permits.clone().acquire_owned().await else {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+    let declared = req
+        .headers()
+        .get(header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok());
+    if declared.is_some_and(|n| n > MAX_REQUEST_BYTES) {
+        return (StatusCode::PAYLOAD_TOO_LARGE, "Request too large.\n").into_response();
+    }
+    let Some(permit) = state.heavy_permit().await else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [(header::RETRY_AFTER, "10")],
+            "The server is busy; try again shortly.\n",
+        )
+            .into_response();
     };
     let (Some(root), Some(dir)) = (repo.git_dir.parent(), repo.git_dir.file_name()) else {
         return StatusCode::NOT_FOUND.into_response();
@@ -128,13 +144,14 @@ pub async fn serve(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
 
-    // Request body → stdin, then EOF.
+    // Request body → stdin, then EOF. A body past the cap is cut off, and
+    // git rejects the truncated request.
     let body = req
         .into_body()
         .into_data_stream()
         .map_err(std::io::Error::other);
     tokio::spawn(async move {
-        let mut reader = StreamReader::new(body);
+        let mut reader = StreamReader::new(body).take(MAX_REQUEST_BYTES);
         if let Err(e) = tokio::io::copy(&mut reader, &mut stdin).await {
             tracing::debug!("clone request body: {e}");
         }

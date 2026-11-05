@@ -228,9 +228,13 @@ impl Default for WatchConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct LimitsConfig {
-    /// 0 = 2 × available CPUs.
+    /// 0 = available CPUs, at most 8.
     pub git_parallel: usize,
     pub heavy_parallel: usize,
+    /// Seconds a heavy request may wait for a permit before a 503.
+    pub heavy_wait_secs: u64,
+    /// Requests in flight at once; more are refused with a 503.
+    pub max_requests: usize,
     pub request_timeout_secs: u64,
     /// Commits a filtered log (path or grep) examines per page.
     pub log_scan: usize,
@@ -245,6 +249,8 @@ impl Default for LimitsConfig {
         Self {
             git_parallel: 0,
             heavy_parallel: 2,
+            heavy_wait_secs: 10,
+            max_requests: 512,
             request_timeout_secs: 30,
             log_scan: 10_000,
             diff_files: 300,
@@ -469,6 +475,9 @@ impl Config {
         if self.limits.heavy_parallel == 0 {
             errors.push("limits.heavy_parallel must be at least 1".into());
         }
+        if self.limits.max_requests == 0 {
+            errors.push("limits.max_requests must be at least 1".into());
+        }
         if self.limits.request_timeout_secs == 0 {
             errors.push("limits.request_timeout_secs must be at least 1".into());
         }
@@ -501,7 +510,8 @@ impl Config {
     /// Effective number of concurrent git workers.
     pub fn git_parallel(&self) -> usize {
         match self.limits.git_parallel {
-            0 => std::thread::available_parallelism().map_or(4, |n| n.get() * 2),
+            // Git work is CPU-bound; more workers than cores only add memory.
+            0 => std::thread::available_parallelism().map_or(4, |n| n.get().min(8)),
             n => n,
         }
     }
@@ -559,7 +569,7 @@ mod tests {
     #[test]
     fn example_config_is_valid() {
         let c = finish(crate::examples::CONFIG).unwrap();
-        assert_eq!(c.site.title, "krolyxon");
+        assert_eq!(c.site.title, "ferrenium");
     }
 
     #[test]

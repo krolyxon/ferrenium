@@ -1,0 +1,63 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches Cargo.toml
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match Cargo.toml version $version"
+            exit 1
+          fi
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --release --locked
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-zigbuild
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zig"
+          "$RUNNER_TEMP/zig/bin/pip" install --quiet cargo-zigbuild
+          echo "$RUNNER_TEMP/zig/bin" >> "$GITHUB_PATH"
+          rustup target add ${{ matrix.arch }}-unknown-linux-gnu
+      # Linked against glibc 2.28, so it runs on Debian 10+, Ubuntu 20.04+, RHEL 8+.
+      - run: cargo zigbuild --release --locked --target ${{ matrix.arch }}-unknown-linux-gnu.2.28
+      - run: tar -czf ferrenium-${{ matrix.arch }}-linux.tar.gz -C target/${{ matrix.arch }}-unknown-linux-gnu/release ferrenium
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ferrenium-${{ matrix.arch }}
+          path: ferrenium-${{ matrix.arch }}-linux.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp dist/install.sh .
+          sha256sum ferrenium-*-linux.tar.gz install.sh > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
+            ferrenium-*-linux.tar.gz install.sh SHA256SUMS

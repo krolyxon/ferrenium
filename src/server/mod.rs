@@ -24,7 +24,6 @@ use tower_http::CompressionLevel;
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::compression::predicate::{NotForContentType, Predicate};
 use tower_http::compression::{CompressionLayer, DefaultPredicate};
-use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::{DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
@@ -47,6 +46,7 @@ pub fn app(state: Arc<AppState>) -> Router {
         .route("/robots.txt", get(robots))
         .route("/{*path}", any(dispatch::dispatch))
         .fallback(handlers::error::not_found)
+        .method_not_allowed_fallback(method_not_allowed)
         .with_state(state.clone());
 
     // The prefix must be stripped *before* routing, so wrap the whole router
@@ -63,6 +63,8 @@ pub fn app(state: Arc<AppState>) -> Router {
     };
 
     let trusted_proxy = config.server.trusted_proxy;
+    // gzip only: brotli's window costs megabytes per response for a ~2%
+    // smaller page.
     let compression = CompressionLayer::new()
         .no_deflate()
         .no_zstd()
@@ -72,7 +74,7 @@ pub fn app(state: Arc<AppState>) -> Router {
     let compression = if config.server.compression {
         compression
     } else {
-        compression.no_gzip().no_br()
+        compression.no_gzip()
     }
     // Fonts, archives and packfiles are already compressed.
     .compress_when(
@@ -83,7 +85,8 @@ pub fn app(state: Arc<AppState>) -> Router {
             .and(NotForContentType::const_new("application/x-git-")),
     );
 
-    let [csp, nosniff, referrer, frame] = headers::layers();
+    let [csp, nosniff, referrer, frame, coop] = headers::layers();
+    let panic_state = state.clone();
     routes.layer(
         ServiceBuilder::new()
             .layer(
@@ -103,17 +106,46 @@ pub fn app(state: Arc<AppState>) -> Router {
                     .on_request(())
                     .on_response(DefaultOnResponse::new().level(Level::INFO)),
             )
-            .layer(CatchPanicLayer::new())
-            .layer(TimeoutLayer::with_status_code(
-                StatusCode::SERVICE_UNAVAILABLE,
-                Duration::from_secs(config.limits.request_timeout_secs),
-            ))
-            .layer(compression)
+            // Outside the panic and timeout handlers, so their pages get
+            // the headers too.
             .layer(csp)
             .layer(nosniff)
             .layer(referrer)
-            .layer(frame),
+            .layer(frame)
+            .layer(coop)
+            .layer(CatchPanicLayer::custom(move |_| {
+                tracing::error!("request handler panicked");
+                handlers::error::page(
+                    &panic_state,
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL ERROR",
+                )
+            }))
+            .layer(middleware::from_fn_with_state(state, shield))
+            .layer(compression),
     )
+}
+
+/// Refuse requests beyond `limits.max_requests` at once, and answer with a
+/// 503 page when a response hasn't started within
+/// `limits.request_timeout_secs`. Streamed bodies (archives, clones) are not
+/// cut off once they've started.
+async fn shield(State(state): State<Arc<AppState>>, req: Request, next: Next) -> Response {
+    let Ok(_permit) = state.request_permits.clone().try_acquire_owned() else {
+        tracing::warn!("too many requests in flight; refusing {}", req.uri());
+        return handlers::error::busy(&state);
+    };
+    let timeout = Duration::from_secs(state.config.load().limits.request_timeout_secs);
+    match tokio::time::timeout(timeout, next.run(req)).await {
+        Ok(res) => res,
+        Err(_) => {
+            handlers::error::page(&state, StatusCode::SERVICE_UNAVAILABLE, "REQUEST TIMED OUT")
+        }
+    }
+}
+
+async fn method_not_allowed(State(state): State<Arc<AppState>>) -> Response {
+    handlers::error::method_not_allowed(&state)
 }
 
 /// First address in `X-Forwarded-For` (the original client, as seen by the

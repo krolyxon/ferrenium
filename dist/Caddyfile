@@ -1,4 +1,4 @@
-git.krolyxon.com {
+git.example.com {
 	reverse_proxy 127.0.0.1:8080
 	# or, with listen = "unix:/run/ferrenium/ferrenium.sock":
 	# reverse_proxy unix//run/ferrenium/ferrenium.sock

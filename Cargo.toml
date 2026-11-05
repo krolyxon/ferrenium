@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.89"
 description = "A fast, read-only Git repository browser"
+license = "GPL-3.0-only"
+repository = "https://github.com/krolyxon/ferrenium"
 publish = false
 
 [dependencies]
@@ -34,7 +36,7 @@ tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "s
 tokio-util = { version = "0.7", features = ["io", "io-util"] }
 toml = "1.2.0"
 tower = { version = "0.5.3", features = ["util"] }
-tower-http = { version = "0.7.1", features = ["trace", "timeout", "catch-panic", "compression-gzip", "compression-br", "set-header"] }
+tower-http = { version = "0.7.1", features = ["trace", "catch-panic", "compression-gzip", "set-header"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
@@ -43,6 +45,6 @@ two-face = { version = "0.5", default-features = false, features = ["syntect-fan
 tempfile = "3"
 
 [profile.release]
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 strip = true

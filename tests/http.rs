@@ -203,7 +203,7 @@ async fn compression_skips_fonts() {
         .oneshot(req(format!("/-/static/{hash}/css/app.css")))
         .await
         .unwrap();
-    assert_eq!(res.headers()[header::CONTENT_ENCODING], "br");
+    assert_eq!(res.headers()[header::CONTENT_ENCODING], "gzip");
     let res = app
         .clone()
         .oneshot(req(format!(

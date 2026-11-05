@@ -1,18 +1,19 @@
 # Ferrenium configuration. Every key is optional; the values shown are the
-# defaults unless noted. Unknown keys are an error — run `ferrenium check`.
+# defaults unless noted. Unknown keys are an error: run `ferrenium check`.
 # Relative paths are resolved against the directory of this file.
+# Apply changes with `systemctl reload ferrenium`.
 
 [server]
 listen = "127.0.0.1:8080"              # or "unix:/run/ferrenium/ferrenium.sock"
-base_url = "https://git.krolyxon.com"   # used for absolute URLs (feeds, clone URLs); default: unset
+# base_url = "https://git.example.com" # for absolute URLs (feeds); default: http://{Host header}
 base_path = "/"                        # serve under a sub-path, e.g. "/git/"
 trusted_proxy = true                   # log X-Forwarded-For; default: false
-compression = true                     # gzip + brotli
+compression = true                     # gzip
 
 [site]
-title = "krolyxon"                     # default: "ferrenium"
-description = "Personal git repositories"
-clone_urls = ["https://git.krolyxon.com/{name}", "git@git.krolyxon.com:{name}"]
+title = "ferrenium"
+# description = "Personal git repositories"
+# clone_urls = ["https://git.example.com/{name}", "git@git.example.com:{name}"]
 # custom_css = "custom.css"
 # header = "header.html"
 # footer = "footer.html"
@@ -32,7 +33,7 @@ https_clone = true
 # name = "dotfiles"
 # description = "My dotfiles"
 # section = "config"
-# owner = "krolyxon"
+# owner = "me"
 # hidden = false
 # readme = "docs/README.md"
 # default_branch = "main"
@@ -53,9 +54,11 @@ debounce_ms = 500
 poll_interval_secs = 300               # 0 disables the periodic full rescan
 
 [limits]
-git_parallel = 0                       # 0 = 2 × CPUs
-heavy_parallel = 2
-request_timeout_secs = 30
+git_parallel = 0                       # 0 = CPUs, at most 8
+heavy_parallel = 2                     # blame, archives, clones and log searches at once
+heavy_wait_secs = 10                   # queue time for a heavy permit before a 503
+max_requests = 512                     # requests in flight; more get an immediate 503
+request_timeout_secs = 30              # until the response starts; streamed bodies are not cut
 log_scan = 10000                       # commits examined per page by path/grep log filters
 diff_files = 300                       # larger commits show the file list only
 diff_lines = 10000                     # changed lines rendered per commit

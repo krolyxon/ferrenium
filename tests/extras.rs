@@ -88,11 +88,16 @@ struct Site {
 
 /// `repos` is extra lines for the `[repos]` table.
 fn site(repos: &str) -> Site {
+    site_with(repos, "")
+}
+
+/// Like [`site`], with `tables` appended to the config.
+fn site_with(repos: &str, tables: &str) -> Site {
     let root = tempfile::tempdir().unwrap();
     let f = fixture(root.path());
     let toml = format!(
         "[repos]\nscan_path = {:?}\n{repos}\n[watch]\nenabled = false\n\
-         [server]\nbase_url = \"https://git.example.com\"\n",
+         [server]\nbase_url = \"https://git.example.com\"\n{tables}\n",
         root.path().to_str().unwrap()
     );
     let mut config = Config::parse(&toml).expect("parse");
@@ -386,6 +391,77 @@ async fn robots_and_methods() {
             .status,
         StatusCode::NOT_FOUND
     );
+}
+
+#[tokio::test]
+async fn hardening() {
+    let s = site_with(
+        "",
+        "[limits]\nheavy_parallel = 1\nheavy_wait_secs = 0\nmax_requests = 4",
+    );
+
+    // Error pages are styled and carry the security headers.
+    for res in [
+        request(&s.app, Method::POST, "/").await,
+        request(&s.app, Method::DELETE, "/ext/tree/main").await,
+    ] {
+        assert_eq!(res.status, StatusCode::METHOD_NOT_ALLOWED);
+        assert_eq!(res.headers[header::ALLOW], "GET, HEAD");
+        assert!(res.text().contains("[ERROR: METHOD NOT ALLOWED]"));
+    }
+    let res = get(&s.app, "/nope/nothing").await;
+    assert_eq!(res.status, StatusCode::NOT_FOUND);
+    assert!(res.text().contains("[ERROR: PAGE NOT FOUND]"));
+    for name in [
+        "content-security-policy",
+        "x-content-type-options",
+        "referrer-policy",
+        "x-frame-options",
+        "cross-origin-opener-policy",
+    ] {
+        assert!(res.headers.contains_key(name), "missing {name}");
+    }
+
+    // Heavy pages give up after `heavy_wait_secs`; others are unaffected.
+    let held = s.state.heavy_permits.clone().try_acquire_owned().unwrap();
+    let res = get(&s.app, "/ext/blame/main/src/main.rs").await;
+    assert_eq!(res.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(res.headers[header::RETRY_AFTER], "10");
+    assert_eq!(res.headers[header::CACHE_CONTROL], "no-store");
+    assert!(res.text().contains("[ERROR: SERVER BUSY]"));
+    assert_eq!(
+        get(&s.app, "/ext/info/refs?service=git-upload-pack")
+            .await
+            .status,
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    ok(&s.app, "/ext/tree/main").await;
+    drop(held);
+    ok(&s.app, "/ext/blame/main/src/main.rs").await;
+
+    // Past `max_requests`, everything is refused at once.
+    let held = s
+        .state
+        .request_permits
+        .clone()
+        .try_acquire_many_owned(4)
+        .unwrap();
+    assert_eq!(
+        get(&s.app, "/").await.status,
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    drop(held);
+    ok(&s.app, "/").await;
+
+    // Oversized fetch negotiations never reach git.
+    let req = Request::builder()
+        .method(Method::POST)
+        .uri("/ext.git/git-upload-pack")
+        .header(header::CONTENT_LENGTH, "1000000000")
+        .body(Body::empty())
+        .unwrap();
+    let res = s.app.clone().oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[tokio::test(flavor = "multi_thread")]
