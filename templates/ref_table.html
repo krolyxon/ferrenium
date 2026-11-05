@@ -1,0 +1,16 @@
+<div class="table-wrap">
+<table class="data-table">
+  <thead>
+    <tr><th class="label">Name</th><th class="label">Last commit</th><th class="label num">Updated</th></tr>
+  </thead>
+  <tbody>
+    {%- for row in rows %}
+    <tr>
+      <td class="ref-name"><a href="{{ row.url }}">{{ row.name }}</a>{% if row.is_default %} <span class="chip">Default</span>{% endif %}</td>
+      <td class="ref-subject">{{ row.subject }}</td>
+      <td class="num"><time datetime="{{ row.iso }}" title="{{ row.iso }}">{{ row.age }}</time></td>
+    </tr>
+    {%- endfor %}
+  </tbody>
+</table>
+</div>

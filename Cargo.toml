@@ -1,0 +1,42 @@
+[package]
+name = "ferrenium"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "A fast, read-only Git repository browser"
+publish = false
+
+[dependencies]
+ammonia = "4.2"
+anyhow = "1.0.104"
+arc-swap = "1.9.3"
+askama = "0.16.1"
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "query"] }
+clap = { version = "4.6.7", features = ["derive", "env"] }
+comrak = { version = "0.59", default-features = false }
+# No `extras`/`interrupt`: they install their own signal handlers.
+gix = { version = "0.90.0", default-features = false, features = ["max-performance", "revision", "blob-diff", "blame", "mailmap", "worktree-archive", "sha1"] }
+jiff = "0.2.39"
+mime_guess = "2.0.5"
+moka = { version = "0.12", features = ["sync"] }
+notify = { version = "8.2.1", default-features = false }
+rust-embed = "8.13.0"
+sd-notify = "0.5.0"
+serde = { version = "1.0.229", features = ["derive"] }
+syntect = { version = "5.3", default-features = false, features = ["parsing", "html", "regex-fancy"] }
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+toml = "1.2.0"
+tower = { version = "0.5.3", features = ["util"] }
+tower-http = { version = "0.7.1", features = ["trace", "timeout", "catch-panic", "compression-gzip", "compression-br", "set-header"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

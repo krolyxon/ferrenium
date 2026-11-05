@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-default-theme="{{ layout.theme }}"{% if layout.theme != "auto" %} data-theme="{{ layout.theme }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>{{ layout.page_title }}</title>
+<link rel="preload" href="{{ layout.static_base }}fonts/space-grotesk-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ layout.static_base }}fonts/space-mono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ layout.static_base }}css/app.css">
+{%- if let Some(css) = layout.site_css %}
+<link rel="stylesheet" href="{{ css }}">
+{%- endif %}
+<link rel="icon" href="{{ layout.static_base }}icons/favicon.svg" type="image/svg+xml">
+<script src="{{ layout.static_base }}js/theme.js"></script>
+<script src="{{ layout.static_base }}js/app.js" defer></script>
+{%- block head %}{% endblock %}
+</head>
+<body>
+<header class="topbar shell">
+  <a class="topbar-home label" href="{{ layout.base }}">{{ layout.site_title }}</a>
+  <div class="segmented theme-switch" role="group" aria-label="Color theme">
+    <button type="button" data-theme-choice="auto" aria-pressed="false">Auto</button>
+    <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+  </div>
+</header>
+{%- if let Some(header) = layout.header %}
+<div class="site-header shell">{{ header|safe }}</div>
+{%- endif %}
+<main class="shell">
+{% block content %}{% endblock %}
+</main>
+<footer class="footer shell">
+  {%- if let Some(footer) = layout.footer %}
+  <div class="site-footer">{{ footer|safe }}</div>
+  {%- endif %}
+  <span class="label dim">Ferrenium {{ layout.version }}</span>
+</footer>
+</body>
+</html>

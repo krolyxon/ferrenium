@@ -1,0 +1,43 @@
+[Unit]
+Description=Ferrenium git repository browser
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/ferrenium serve --config /etc/ferrenium/ferrenium.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+TimeoutStopSec=15
+
+User=git
+Group=git
+RuntimeDirectory=ferrenium
+RuntimeDirectoryMode=0755
+
+# Read-only sandbox: ferrenium never writes to disk.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

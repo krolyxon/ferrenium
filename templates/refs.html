@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "repo_nav.html" %}
+{% include "crumbs.html" %}
+<section class="refs-section">
+  <h2 class="label section-label">Branches</h2>
+  {%- if branches.is_empty() %}
+  <p class="status">[No branches]</p>
+  {%- else %}
+  {%- let rows = branches %}
+  {% include "ref_table.html" %}
+  {%- endif %}
+</section>
+<section class="refs-section">
+  <h2 class="label section-label">Tags</h2>
+  {%- if tags.is_empty() %}
+  <p class="status">[No tags]</p>
+  {%- else %}
+  {%- let rows = tags %}
+  {% include "ref_table.html" %}
+  {%- endif %}
+</section>
+{% endblock %}

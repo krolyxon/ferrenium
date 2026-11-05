@@ -1,0 +1,94 @@
+/*
+ * Design tokens — Nothing design system.
+ *
+ * Every color is written once as light-dark(LIGHT, DARK). The active side is
+ * picked by `color-scheme`: the OS preference by default, or forced by the
+ * [data-theme] attribute set from the server config / theme toggle.
+ */
+
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root {
+  /* Surfaces: OLED black / printed-manual off-white. */
+  --black: light-dark(#F5F5F5, #000000);
+  --surface: light-dark(#FFFFFF, #111111);
+  --surface-raised: light-dark(#F0F0F0, #1A1A1A);
+  --border: light-dark(#E8E8E8, #222222);
+  --border-visible: light-dark(#CCCCCC, #333333);
+
+  /* Text: the gray scale is the hierarchy. */
+  --text-disabled: light-dark(#999999, #666666);
+  --text-secondary: light-dark(#666666, #999999);
+  --text-primary: light-dark(#1A1A1A, #E8E8E8);
+  --text-display: light-dark(#000000, #FFFFFF);
+
+  /* Accent & status — identical in both modes. */
+  --accent: #D71921;
+  --accent-subtle: rgba(215, 25, 33, 0.15);
+  --success: #4A9E5C;
+  --warning: #D4A843;
+  --error: #D71921;
+  --info: var(--text-secondary);
+  --interactive: light-dark(#007AFF, #5B9BF6);
+
+  /* Empty segment in segmented bars. */
+  --segment-empty: light-dark(#E0E0E0, #222222);
+
+  /* Type families. --font-code may be overridden via ui.code_font. */
+  --font-display: "Doto", "Space Mono", monospace;
+  --font-body: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+  --font-mono: "Space Mono", "JetBrains Mono", "SF Mono", monospace;
+  --font-code: var(--font-mono);
+
+  /* Type scale. */
+  --display-xl: 72px;
+  --display-lg: 48px;
+  --display-md: 36px;
+  --heading: 24px;
+  --subheading: 18px;
+  --body: 16px;
+  --body-sm: 14px;
+  --caption: 12px;
+  --label: 11px;
+
+  /* Spacing (8px base). */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+
+  /* Layout. */
+  --gutter: var(--space-md);
+  --page-max: 1200px;
+  --rail: 280px;
+
+  /* Motion: subtle ease-out only. */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --dur-micro: 150ms;
+  --dur: 300ms;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: var(--space-xl);
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --gutter: var(--space-2xl);
+  }
+}

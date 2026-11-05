@@ -1,0 +1,709 @@
+/* Repository pages: nav, ref picker, summary, tree, blob, refs, Markdown. */
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ---- Repository bar: [ SUMMARY ]  TREE  REFS · ref picker ------------- */
+
+.repo-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  padding-top: var(--space-sm);
+}
+
+.bracket-nav {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bracket-nav a {
+  white-space: nowrap;
+}
+
+.ref-picker {
+  position: relative;
+}
+
+.ref-picker summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border-visible);
+  border-radius: 999px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: border-color var(--dur-micro) var(--ease);
+}
+
+.ref-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.ref-picker summary:hover,
+.ref-picker[open] summary {
+  border-color: var(--text-secondary);
+}
+
+.ref-current {
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-primary);
+}
+
+.ref-picker[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.ref-menu {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  top: calc(100% + var(--space-xs));
+  width: max-content;
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 2 * var(--gutter)));
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--space-sm) 0;
+  border: 1px solid var(--border-visible);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.ref-group {
+  padding: var(--space-sm) var(--space-md) var(--space-xs);
+  color: var(--text-disabled);
+}
+
+.ref-menu ul {
+  list-style: none;
+}
+
+.ref-menu li a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border-left: 2px solid transparent;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.ref-menu li a:hover {
+  color: var(--text-display);
+  text-decoration: none;
+}
+
+.ref-menu li a.active {
+  border-left-color: var(--accent);
+  color: var(--text-display);
+}
+
+.ref-all {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  margin-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+}
+
+/* ---- Breadcrumb: secondary path, current segment in display ------------ */
+
+.crumbs {
+  padding-top: var(--space-2xl);
+  font-size: var(--heading);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.crumbs a {
+  color: var(--text-secondary);
+}
+
+.crumbs a:hover {
+  color: var(--text-display);
+}
+
+.crumb-sep {
+  padding: 0 var(--space-sm);
+  color: var(--text-disabled);
+}
+
+.crumb-here {
+  color: var(--text-display);
+}
+
+/* ---- Summary ------------------------------------------------------------ */
+
+.repo-hero {
+  padding-top: var(--space-2xl);
+}
+
+.repo-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.repo-about {
+  margin-top: var(--space-sm);
+  max-width: 60ch;
+  color: var(--text-secondary);
+}
+
+.repo-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2xl);
+  margin-top: var(--space-xl);
+}
+
+@media (min-width: 768px) {
+  .repo-grid {
+    grid-template-columns: minmax(0, 1fr) var(--rail);
+    gap: var(--space-xl);
+  }
+}
+
+@media (min-width: 1200px) {
+  .repo-grid {
+    gap: var(--space-2xl);
+  }
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  min-width: 0;
+}
+
+.stats {
+  border-top: 1px solid var(--border);
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--body-sm);
+  color: var(--text-primary);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 30px;
+}
+
+.rail-block > .label {
+  display: block;
+}
+
+.clone-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.clone-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-visible);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-primary);
+  outline: none;
+  text-overflow: ellipsis;
+}
+
+.clone-input:focus {
+  border-bottom-color: var(--text-primary);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.icon-btn:hover {
+  color: var(--text-display);
+}
+
+/* Copying and switching protocols need JS; without it every URL shows. */
+html:not(.js) .clone-switch,
+html:not(.js) [data-copy],
+html:not(.js) .copy-status {
+  display: none;
+}
+
+.copy-status {
+  min-height: 1.4em;
+  margin-top: var(--space-xs);
+}
+
+.latest-subject {
+  margin-top: var(--space-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.latest-meta {
+  margin-top: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-secondary);
+}
+
+.sha {
+  font-family: var(--font-mono);
+}
+
+/* ---- Tree listing --------------------------------------------------------- */
+
+.tree {
+  list-style: none;
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.repo-main > .tree:first-child {
+  margin-top: 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tree-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.tree-name .icon {
+  color: var(--text-disabled);
+}
+
+.tree-name .icon-folder {
+  color: var(--text-secondary);
+}
+
+.tree-meta {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-disabled);
+  white-space: nowrap;
+}
+
+.tree-foot {
+  margin-top: var(--space-md);
+}
+
+/* ---- README ------------------------------------------------------------- */
+
+.readme {
+  margin-top: var(--space-2xl);
+}
+
+.readme-name {
+  display: inline-block;
+  margin-bottom: var(--space-md);
+  color: var(--text-secondary);
+}
+
+/* ---- Blob --------------------------------------------------------------- */
+
+.blob-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.blob-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.blob-note {
+  padding-block: var(--space-2xl);
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.code-wrap {
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.code {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 20px;
+  tab-size: 4;
+}
+
+.code td {
+  padding: 0;
+  vertical-align: top;
+}
+
+.code .ln {
+  width: 1%;
+  border-left: 2px solid transparent;
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.code .ln a {
+  display: block;
+  padding: 0 var(--space-md) 0 var(--space-sm);
+  color: var(--text-disabled);
+}
+
+.code .ln a:hover {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.code .lc {
+  padding: 0 var(--space-md);
+  white-space: pre;
+  color: var(--text-primary);
+}
+
+.code tr:first-child td {
+  padding-top: var(--space-sm);
+}
+
+.code tr:last-child td {
+  padding-bottom: var(--space-sm);
+}
+
+/* Selected lines: #L12 (CSS) or #L12-L20 (JS). */
+.code tr:target,
+.code tr.selected {
+  background: var(--surface-raised);
+}
+
+.code tr:target .ln,
+.code tr.selected .ln {
+  border-left-color: var(--accent);
+}
+
+.code tr:target .ln a,
+.code tr.selected .ln a {
+  color: var(--text-display);
+}
+
+/* The one break on the blob page: images float on a dot grid. */
+.image-view {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-sm);
+  padding: var(--space-xl) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-image: radial-gradient(circle, var(--border-visible) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.image-view img {
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.blob-markdown {
+  margin-top: var(--space-xl);
+}
+
+/* ---- Refs --------------------------------------------------------------- */
+
+.refs-section {
+  margin-top: var(--space-2xl);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--border-visible);
+  text-align: left;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: baseline;
+}
+
+.data-table .num {
+  padding-right: 0;
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-disabled);
+}
+
+.data-table th.num {
+  font-size: var(--label);
+  color: var(--text-secondary);
+}
+
+.ref-name {
+  font-family: var(--font-mono);
+  font-size: var(--body-sm);
+  overflow-wrap: anywhere;
+}
+
+.ref-subject {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.chip {
+  display: inline-block;
+  margin-left: var(--space-sm);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border-visible);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ---- Markdown ------------------------------------------------------------ */
+
+.markdown {
+  max-width: 72ch;
+  overflow-wrap: break-word;
+  color: var(--text-primary);
+}
+
+.markdown > * + * {
+  margin-top: var(--space-md);
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin-top: var(--space-xl);
+  line-height: 1.25;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown h1 {
+  font-size: var(--heading);
+}
+
+.markdown h2 {
+  font-size: var(--subheading);
+}
+
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: var(--body);
+}
+
+.markdown a.anchor {
+  display: none;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: var(--space-lg);
+}
+
+.markdown li + li,
+.markdown li > ul,
+.markdown li > ol {
+  margin-top: var(--space-xs);
+}
+
+.markdown .contains-task-list {
+  list-style: none;
+  padding-left: var(--space-xs);
+}
+
+.markdown input[type="checkbox"] {
+  margin: 0 var(--space-sm) 0 0;
+  vertical-align: middle;
+  accent-color: var(--text-display);
+}
+
+.markdown code {
+  padding: 1px var(--space-xs);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  font-size: 0.875em;
+}
+
+.markdown pre {
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow-x: auto;
+  line-height: 20px;
+  tab-size: 4;
+}
+
+.markdown pre code {
+  padding: 0;
+  background: none;
+  font-size: 13px;
+}
+
+.markdown pre.plain {
+  max-width: none;
+  white-space: pre-wrap;
+}
+
+.markdown blockquote {
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--border-visible);
+  color: var(--text-secondary);
+}
+
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.markdown img {
+  display: inline-block;
+}
+
+.markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.markdown th,
+.markdown td {
+  padding: var(--space-sm) var(--space-md) var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown th {
+  border-bottom-color: var(--border-visible);
+  font-weight: 500;
+  text-align: left;
+}
+
+.markdown .markdown-alert {
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--border-visible);
+}
+
+.markdown .markdown-alert-warning,
+.markdown .markdown-alert-caution {
+  border-left-color: var(--accent);
+}
+
+.markdown .markdown-alert-title {
+  font-family: var(--font-mono);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.markdown .footnotes {
+  font-size: var(--body-sm);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-md);
+}

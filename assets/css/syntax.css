@@ -1,0 +1,25 @@
+/*
+ * Syntax highlighting: monochrome, by weight of gray. The classes come from
+ * src/render/highlight.rs and are shared by the blob view and README code.
+ */
+
+.hl-k {
+  color: var(--text-display);
+  font-weight: 700;
+}
+
+.hl-d {
+  color: var(--text-display);
+}
+
+.hl-s {
+  color: var(--text-secondary);
+}
+
+.hl-c {
+  color: var(--text-disabled);
+}
+
+.hl-x {
+  color: var(--accent);
+}

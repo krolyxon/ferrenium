@@ -1,0 +1,423 @@
+/* Components: labels, display type, top bar, theme switch, page patterns. */
+
+/* ---- Type roles ------------------------------------------------------- */
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--label);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.dim {
+  color: var(--text-disabled);
+}
+
+.doto {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-display);
+}
+
+.display-xl {
+  font-size: var(--display-xl);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.display-lg {
+  font-size: var(--display-lg);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.display-md {
+  font-size: var(--display-md);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* Inline status text: [LOADING], [COPIED], [ERROR: …]. */
+.status {
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.status-error {
+  color: var(--error);
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.btn-ghost:hover {
+  color: var(--text-display);
+  text-decoration: none;
+}
+
+/* ---- Top bar ---------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 64px;
+  padding-block: var(--space-md);
+}
+
+.topbar-home {
+  color: var(--text-display);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-home:hover {
+  text-decoration: none;
+}
+
+/* ---- Segmented control ------------------------------------------------ */
+
+.segmented {
+  display: inline-flex;
+  flex: none;
+  padding: var(--space-2xs);
+  border: 1px solid var(--border-visible);
+  border-radius: 999px;
+}
+
+.segmented button,
+.segmented a {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 var(--space-md);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition:
+    background-color 200ms var(--ease),
+    color 200ms var(--ease);
+}
+
+.segmented button:hover,
+.segmented a:hover {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.segmented button[aria-pressed="true"],
+.segmented a[aria-current="true"] {
+  background: var(--text-display);
+  color: var(--black);
+}
+
+.segmented-sm button,
+.segmented-sm a {
+  height: 26px;
+  padding: 0 var(--space-sm);
+}
+
+@media (pointer: coarse) {
+  .segmented button,
+  .segmented a {
+    height: 40px;
+  }
+}
+
+/* The theme switch needs JS; without it the OS preference applies. */
+html:not(.js) .theme-switch {
+  display: none;
+}
+
+/* ---- Site header / footer --------------------------------------------- */
+
+.site-header {
+  padding-block: var(--space-sm);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-4xl);
+  padding-block: var(--space-xl);
+}
+
+.site-footer {
+  font-size: var(--body-sm);
+  color: var(--text-secondary);
+}
+
+/* ---- Index ------------------------------------------------------------ */
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md) var(--space-xl);
+  padding-top: var(--space-3xl);
+}
+
+.hero-main {
+  min-width: 0;
+}
+
+.hero h1 {
+  overflow-wrap: anywhere;
+}
+
+.hero-desc {
+  margin-top: var(--space-sm);
+  max-width: 60ch;
+  color: var(--text-secondary);
+}
+
+.hero-meta {
+  white-space: nowrap;
+  padding-bottom: var(--space-xs);
+}
+
+/* ---- Inputs ----------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.field input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm) 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-visible);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--body);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--dur-micro) var(--ease);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.field input::placeholder {
+  color: var(--text-disabled);
+}
+
+.field input:focus {
+  border-bottom-color: var(--text-primary);
+}
+
+.field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* ---- Index: filter, sort, repository rows ----------------------------- */
+
+.index-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md) var(--space-xl);
+  margin-top: var(--space-2xl);
+}
+
+.index-tools .field {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+/* Bracket nav: [ ACTIVE ]  INACTIVE */
+.sort,
+.bracket-nav {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.sort a,
+.bracket-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: var(--space-xs);
+  color: var(--text-disabled);
+  transition: color var(--dur-micro) var(--ease);
+}
+
+.sort a:hover,
+.bracket-nav a:hover {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.sort a.active,
+.bracket-nav a.active {
+  color: var(--text-display);
+}
+
+.sort a.active::before,
+.bracket-nav a.active::before {
+  content: "[ ";
+  white-space: pre;
+}
+
+.sort a.active::after,
+.bracket-nav a.active::after {
+  content: " ]";
+  white-space: pre;
+}
+
+.repo-section {
+  margin-top: var(--space-2xl);
+}
+
+.section-label {
+  padding-bottom: var(--space-sm);
+}
+
+.repo-list {
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.repo-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.repo-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  flex: 1;
+  min-width: 0;
+  padding-block: 14px;
+  color: var(--text-primary);
+}
+
+.repo-link:hover {
+  text-decoration: none;
+}
+
+.repo-name {
+  font-weight: 500;
+  color: var(--text-display);
+  overflow-wrap: anywhere;
+}
+
+.repo-link:hover .repo-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.repo-desc {
+  color: var(--text-secondary);
+}
+
+@media (min-width: 768px) {
+  .repo-link {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-md);
+  }
+
+  .repo-name {
+    flex: none;
+    max-width: 50%;
+  }
+
+  .repo-desc {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.repo-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: none;
+  color: var(--text-disabled);
+  white-space: nowrap;
+}
+
+/* Data-status dot: pushed in the last 24 hours. */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.no-matches {
+  padding-block: var(--space-2xl);
+}
+
+/* ---- Empty state ------------------------------------------------------ */
+
+.empty {
+  padding-block: var(--space-4xl);
+  text-align: center;
+}
+
+.empty-title {
+  color: var(--text-secondary);
+}
+
+.empty-desc {
+  margin-top: var(--space-xs);
+  color: var(--text-disabled);
+}
+
+/* ---- Error page ------------------------------------------------------- */
+
+.error-page {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding-top: var(--space-4xl);
+}
+
+.error-page .btn-ghost {
+  margin-top: var(--space-xl);
+}

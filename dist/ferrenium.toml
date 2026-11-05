@@ -1,0 +1,60 @@
+# Ferrenium configuration. Every key is optional; the values shown are the
+# defaults unless noted. Unknown keys are an error — run `ferrenium check`.
+# Relative paths are resolved against the directory of this file.
+
+[server]
+listen = "127.0.0.1:8080"              # or "unix:/run/ferrenium/ferrenium.sock"
+base_url = "https://git.krolyxon.com"   # used for absolute URLs (feeds, clone URLs); default: unset
+base_path = "/"                        # serve under a sub-path, e.g. "/git/"
+trusted_proxy = true                   # log X-Forwarded-For; default: false
+compression = true                     # gzip + brotli
+
+[site]
+title = "krolyxon"                     # default: "ferrenium"
+description = "Personal git repositories"
+clone_urls = ["https://git.krolyxon.com/{name}", "git@git.krolyxon.com:{name}"]
+# custom_css = "custom.css"
+# header = "header.html"
+# footer = "footer.html"
+
+[repos]
+scan_path = "/home/git"
+max_depth = 3
+follow_symlinks = false
+section_from_path = false
+hide = []                              # globs over repo names, e.g. ["private/*"]
+snapshots = ["tar.gz", "zip"]
+https_clone = true
+
+# Optional per-repo overrides (take precedence over git config and the
+# repository's description file).
+# [[repo]]
+# name = "dotfiles"
+# description = "My dotfiles"
+# section = "config"
+# owner = "krolyxon"
+# hidden = false
+# readme = "docs/README.md"
+# default_branch = "main"
+
+[ui]
+theme = "auto"                         # auto | dark | light
+code_font = "Space Mono"
+max_blob_kb = 1024
+max_highlight_kb = 256
+
+[cache]
+size_mb = 64
+
+[watch]
+enabled = true
+debounce_ms = 500
+poll_interval_secs = 300               # 0 disables the periodic full rescan
+
+[limits]
+git_parallel = 0                       # 0 = 2 × CPUs
+heavy_parallel = 2
+request_timeout_secs = 30
+
+[log]
+level = "info"                         # RUST_LOG takes precedence when set

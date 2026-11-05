@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+{% include "repo_nav.html" %}
+<section class="repo-hero">
+  <h1 class="display-md repo-title">{{ name }}</h1>
+  {%- if let Some(description) = description %}
+  <p class="repo-about">{{ description }}</p>
+  {%- endif %}
+</section>
+<div class="repo-grid">
+  <div class="repo-main">
+    {%- if let Some(rows) = rows %}
+    {% call m::tree_list(rows, layout.static_base) %}{% endcall %}
+    {%- else %}
+    <section class="empty">
+      <p class="empty-title">Empty repository</p>
+      <p class="empty-desc">Push a branch and it will show up here.</p>
+    </section>
+    {%- endif %}
+    {%- if let Some(readme) = readme %}
+    {% call m::readme(readme) %}{% endcall %}
+    {%- endif %}
+  </div>
+  <aside class="rail">
+    <dl class="stats">
+      {%- for stat in stats %}
+      <div class="stat">
+        <dt class="label">{{ stat.label }}</dt>
+        <dd>{% if let Some(title) = stat.title %}<time datetime="{{ title }}" title="{{ title }}">{{ stat.value }}</time>{% else %}{{ stat.value }}{% endif %}</dd>
+      </div>
+      {%- endfor %}
+    </dl>
+    {%- if !clone_urls.is_empty() %}
+    <section class="rail-block" data-clone>
+      <div class="rail-head">
+        <h2 class="label">Clone</h2>
+        {%- if clone_urls.len() > 1 %}
+        <div class="segmented segmented-sm clone-switch" role="group" aria-label="Clone protocol">
+          {%- for url in clone_urls %}
+          <button type="button" data-clone-choice="{{ loop.index0 }}" aria-pressed="{% if loop.first %}true{% else %}false{% endif %}">{{ url.label }}</button>
+          {%- endfor %}
+        </div>
+        {%- endif %}
+      </div>
+      {%- for url in clone_urls %}
+      <div class="clone-row" data-clone-url="{{ loop.index0 }}">
+        <input class="clone-input" type="text" readonly value="{{ url.url }}" aria-label="{{ url.label }} clone URL" spellcheck="false">
+        <button type="button" class="icon-btn" data-copy aria-label="Copy {{ url.label }} clone URL" title="Copy">
+          <svg class="icon" aria-hidden="true"><use href="{{ layout.static_base }}icons/sprite.svg#copy"></use></svg>
+        </button>
+      </div>
+      {%- endfor %}
+      <p class="status copy-status" data-copy-status aria-live="polite"></p>
+    </section>
+    {%- endif %}
+    {%- if let Some(latest) = latest %}
+    <section class="rail-block">
+      <h2 class="label">Latest</h2>
+      <p class="latest-subject">{{ latest.subject }}</p>
+      <p class="latest-meta">{{ latest.author }} · <time datetime="{{ latest.iso }}" title="{{ latest.iso }}">{{ latest.age }}</time> · <a class="sha" href="{{ latest.url }}">{{ latest.id }}</a></p>
+    </section>
+    {%- endif %}
+  </aside>
+</div>
+{% endblock %}

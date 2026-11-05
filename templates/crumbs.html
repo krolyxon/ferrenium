@@ -1,0 +1,4 @@
+<h1 class="crumbs">
+  {%- for crumb in crumbs %}<a href="{{ crumb.url }}">{{ crumb.name }}</a><span class="crumb-sep" aria-hidden="true">/</span>{% endfor -%}
+  {%- if let Some(here) = here %}<span class="crumb-here">{{ here }}</span>{% endif -%}
+</h1>

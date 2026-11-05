@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-main">
+    <h1 class="doto display-lg">{{ layout.site_title }}</h1>
+    {%- if !description.is_empty() %}
+    <p class="hero-desc">{{ description }}</p>
+    {%- endif %}
+  </div>
+  <p class="hero-meta label">{{ total }} {% if total == 1 %}Repository{% else %}Repositories{% endif %}</p>
+</section>
+{%- if total == 0 %}
+<section class="empty">
+  <p class="empty-title">No repositories</p>
+  <p class="empty-desc">Push a bare repository under the scan path and it will appear here.</p>
+</section>
+{%- else %}
+<form class="index-tools" method="get" action="{{ layout.base }}" role="search">
+  <label class="field">
+    <span class="label">Filter</span>
+    <input type="search" name="q" value="{{ q }}" autocomplete="off" spellcheck="false" placeholder="/" aria-keyshortcuts="/" data-filter>
+  </label>
+  {%- if by_activity %}
+  <input type="hidden" name="sort" value="activity">
+  {%- endif %}
+  <nav class="sort" aria-label="Sort by">
+    <a class="label{% if !by_activity %} active{% endif %}" href="{{ sort_name_url }}"{% if !by_activity %} aria-current="true"{% endif %}>Name</a>
+    <a class="label{% if by_activity %} active{% endif %}" href="{{ sort_activity_url }}"{% if by_activity %} aria-current="true"{% endif %}>Activity</a>
+  </nav>
+</form>
+{%- for section in sections %}
+<section class="repo-section" data-section>
+  {%- if let Some(name) = section.name %}
+  <h2 class="label section-label">[ {{ name }} ]</h2>
+  {%- endif %}
+  <ul class="repo-list">
+    {%- for repo in section.rows %}
+    <li class="repo-row" data-search="{{ repo.search }}">
+      <a class="repo-link" href="{{ repo.url }}">
+        <span class="repo-name">{{ repo.name }}</span>
+        {%- if let Some(desc) = repo.description %}
+        <span class="repo-desc">{{ desc }}</span>
+        {%- endif %}
+      </a>
+      <span class="repo-meta label">
+        {%- if repo.fresh %}<span class="dot" title="Updated in the last 24 hours"></span>{% endif -%}
+        {%- if let Some(age) = repo.age %}<time datetime="{{ repo.iso.as_deref().unwrap_or_default() }}" title="{{ repo.iso.as_deref().unwrap_or_default() }}">{{ age }}</time>{% else %}Empty{% endif -%}
+      </span>
+    </li>
+    {%- endfor %}
+  </ul>
+</section>
+{%- endfor %}
+<p class="status no-matches" data-filter-empty{% if shown > 0 %} hidden{% endif %}>[No matches]</p>
+{%- endif %}
+{% endblock %}

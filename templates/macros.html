@@ -1,0 +1,24 @@
+{% macro tree_list(rows, static_base) %}
+<ul class="tree">
+  {%- for row in rows %}
+  <li class="tree-row">
+    {%- if let Some(url) = row.url %}
+    <a class="tree-name" href="{{ url }}">
+    {%- else %}
+    <span class="tree-name">
+    {%- endif %}
+      <svg class="icon icon-{{ row.icon }}" aria-hidden="true"><use href="{{ static_base }}icons/sprite.svg#{{ row.icon }}"></use></svg>
+      <span>{{ row.name }}</span>
+    {%- if row.url.is_some() %}</a>{% else %}</span>{% endif %}
+    <span class="tree-meta">{{ row.meta }}</span>
+  </li>
+  {%- endfor %}
+</ul>
+{% endmacro %}
+
+{% macro readme(readme) %}
+<article class="readme">
+  <a class="label readme-name" href="{{ readme.url }}">{{ readme.name }}</a>
+  <div class="markdown">{{ readme.html|safe }}</div>
+</article>
+{% endmacro %}

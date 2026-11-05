@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "repo_nav.html" %}
+{% include "crumbs.html" %}
+<div class="blob-bar">
+  <p class="label blob-facts">{% for fact in facts %}{% if !loop.first %} · {% endif %}{{ fact }}{% endfor %}</p>
+  <div class="blob-actions">
+    {%- if let Some(toggle) = toggle %}
+    <nav class="segmented segmented-sm" aria-label="View">
+      <a href="{{ toggle.preview_url }}"{% if !toggle.source %} aria-current="true"{% endif %}>Preview</a>
+      <a href="{{ toggle.source_url }}"{% if toggle.source %} aria-current="true"{% endif %}>Source</a>
+    </nav>
+    {%- endif %}
+    <a class="btn-ghost" href="{{ raw_url }}">Raw</a>
+    <a class="btn-ghost" href="{{ download_url }}">Download</a>
+  </div>
+</div>
+{%- match body %}
+{%- when Body::Code with { lines } %}
+<div class="code-wrap">
+<table class="code" data-lines>
+<tbody>
+{%- for line in lines.iter() %}
+<tr id="L{{ loop.index }}"><td class="ln"><a href="#L{{ loop.index }}">{{ loop.index }}</a></td><td class="lc">{{ line|safe }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+</div>
+{%- when Body::Markdown with { html } %}
+<article class="markdown blob-markdown">{{ html|safe }}</article>
+{%- when Body::Image with { src } %}
+<figure class="image-view dot-grid"><img src="{{ src }}" alt="{{ here.as_deref().unwrap_or_default() }}"></figure>
+{%- when Body::Symlink with { target, url } %}
+<p class="blob-note"><span class="label">Symlink to</span> {% if let Some(url) = url %}<a class="mono" href="{{ url }}">{{ target }}</a>{% else %}<span class="mono">{{ target }}</span>{% endif %}</p>
+{%- when Body::Binary %}
+<p class="status blob-note">[Binary file]</p>
+{%- when Body::TooLarge %}
+<p class="status blob-note">[Too large to display] <a href="{{ raw_url }}">View raw</a></p>
+{%- when Body::Empty %}
+<p class="status blob-note">[Empty file]</p>
+{%- endmatch %}
+{% endblock %}
