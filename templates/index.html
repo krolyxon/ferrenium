@@ -20,8 +20,8 @@
     <span class="label">Filter</span>
     <input type="search" name="q" value="{{ q }}" autocomplete="off" spellcheck="false" placeholder="/" aria-keyshortcuts="/" data-filter>
   </label>
-  {%- if by_activity %}
-  <input type="hidden" name="sort" value="activity">
+  {%- if let Some(sort) = sort_param %}
+  <input type="hidden" name="sort" value="{{ sort }}">
   {%- endif %}
   <nav class="sort" aria-label="Sort by">
     <a class="label{% if !by_activity %} active{% endif %}" href="{{ sort_name_url }}"{% if !by_activity %} aria-current="true"{% endif %}>Name</a>

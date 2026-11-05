@@ -190,7 +190,12 @@ async fn index_page_lists_sections_filter_and_sort() {
     bare(r, "empty.git", &[]);
     let state = state(config(r, "", ""));
 
-    let html = page(&state, "/").await;
+    // Default order: by activity, one list.
+    let default = page(&state, "/").await;
+    assert!(!default.contains("[ greek ]"));
+    assert!(!default.contains(r#"name="sort""#));
+
+    let html = page(&state, "/?sort=name").await;
     assert!(html.contains("4 Repositories"));
     assert!(html.contains(r#"href="/alpha""#));
     assert!(html.contains(r#"href="/with%20space""#));
@@ -212,9 +217,21 @@ async fn index_page_lists_sections_filter_and_sort() {
     assert!(none.contains("[No matches]"));
     assert!(!none.contains("data-filter-empty hidden"));
 
+    assert!(html.contains(r#"name="sort" value="name""#));
     let by_activity = page(&state, "/?sort=activity").await;
     assert!(!by_activity.contains("[ greek ]"));
-    assert!(by_activity.contains(r#"name="sort" value="activity""#));
+    assert!(!by_activity.contains(r#"name="sort""#));
+
+    // `ui.index_sort = "name"` makes name order the default.
+    let state = state_for_name_sort(r);
+    let html = page(&state, "/").await;
+    assert!(html.contains("[ greek ]"));
+    assert!(!html.contains(r#"name="sort""#));
+    assert!(html.contains(r#"href="/?sort=activity""#));
+}
+
+fn state_for_name_sort(root: &std::path::Path) -> Arc<AppState> {
+    state(config(root, "", "[ui]\nindex_sort = \"name\"\n"))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -40,6 +40,7 @@ https_clone = true
 
 [ui]
 theme = "auto"                         # auto | dark | light
+index_sort = "activity"                # repository index order: activity | name
 code_font = "Space Mono"
 max_blob_kb = 1024
 max_highlight_kb = 256

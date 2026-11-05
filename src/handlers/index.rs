@@ -9,6 +9,7 @@ use axum::response::Response;
 use serde::Deserialize;
 
 use super::{Layout, render};
+use crate::config::IndexSort;
 use crate::index::Repo;
 use crate::render::{encode_path, time};
 use crate::state::AppState;
@@ -53,6 +54,8 @@ pub struct IndexPage {
     pub shown: usize,
     pub q: String,
     pub by_activity: bool,
+    /// `?sort=` value to keep when filtering; `None` for the default order.
+    pub sort_param: Option<&'static str>,
     pub sort_name_url: String,
     pub sort_activity_url: String,
     pub sections: Vec<Section>,
@@ -64,7 +67,13 @@ pub async fn index(
 ) -> Response {
     let config = state.config.load();
     let index = state.index.load();
-    let by_activity = query.sort == "activity";
+    let default_sort = config.ui.index_sort;
+    let sort = match query.sort.as_str() {
+        "activity" => IndexSort::Activity,
+        "name" => IndexSort::Name,
+        _ => default_sort,
+    };
+    let by_activity = sort == IndexSort::Activity;
     let q = query.q.trim().to_string();
     let terms: Vec<String> = q.split_whitespace().map(str::to_lowercase).collect();
     let now = time::now();
@@ -127,21 +136,29 @@ pub async fn index(
         }
     }
 
-    let sort_url = |sort: &str| {
-        let mut url = format!("{base}?sort={sort}");
-        if !q.is_empty() {
-            url.push_str("&q=");
-            url.push_str(&encode_path(&q));
+    // The default order needs no `sort` parameter.
+    let sort_url = |sort: IndexSort| {
+        let mut params = Vec::new();
+        if sort != default_sort {
+            params.push(format!("sort={}", sort.as_str()));
         }
-        url
+        if !q.is_empty() {
+            params.push(format!("q={}", encode_path(&q)));
+        }
+        if params.is_empty() {
+            base.clone()
+        } else {
+            format!("{base}?{}", params.join("&"))
+        }
     };
     let page = IndexPage {
         layout: Layout::new(&state, &config, None),
         description: config.site.description.clone(),
         total: index.repos.len(),
         shown,
-        sort_name_url: sort_url("name"),
-        sort_activity_url: sort_url("activity"),
+        sort_param: (sort != default_sort).then(|| sort.as_str()),
+        sort_name_url: sort_url(IndexSort::Name),
+        sort_activity_url: sort_url(IndexSort::Activity),
         q,
         by_activity,
         sections,

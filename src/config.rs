@@ -154,6 +154,8 @@ pub struct RepoOverride {
 #[serde(deny_unknown_fields, default)]
 pub struct UiConfig {
     pub theme: Theme,
+    /// Default order of the repository index (`?sort=` overrides it).
+    pub index_sort: IndexSort,
     pub code_font: String,
     pub max_blob_kb: u64,
     pub max_highlight_kb: u64,
@@ -165,6 +167,7 @@ impl Default for UiConfig {
     fn default() -> Self {
         Self {
             theme: Theme::Auto,
+            index_sort: IndexSort::Activity,
             code_font: DEFAULT_CODE_FONT.into(),
             max_blob_kb: 1024,
             max_highlight_kb: 256,
@@ -174,6 +177,25 @@ impl Default for UiConfig {
 }
 
 pub const DEFAULT_CODE_FONT: &str = "Space Mono";
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IndexSort {
+    /// Most recently pushed first, as one list.
+    #[default]
+    Activity,
+    /// By section, then name.
+    Name,
+}
+
+impl IndexSort {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IndexSort::Activity => "activity",
+            IndexSort::Name => "name",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -558,6 +580,7 @@ mod tests {
         assert_eq!(c.repos.scan_path, PathBuf::from("/home/git"));
         assert_eq!(c.repos.max_depth, 3);
         assert_eq!(c.ui.theme, Theme::Auto);
+        assert_eq!(c.ui.index_sort, IndexSort::Activity);
         assert_eq!(c.cache.size_mb, 64);
         assert_eq!(
             c.repos.snapshots,
