@@ -157,6 +157,8 @@ pub struct UiConfig {
     pub code_font: String,
     pub max_blob_kb: u64,
     pub max_highlight_kb: u64,
+    /// Commits per log page.
+    pub log_page: usize,
 }
 
 impl Default for UiConfig {
@@ -166,6 +168,7 @@ impl Default for UiConfig {
             code_font: DEFAULT_CODE_FONT.into(),
             max_blob_kb: 1024,
             max_highlight_kb: 256,
+            log_page: 50,
         }
     }
 }
@@ -229,6 +232,12 @@ pub struct LimitsConfig {
     pub git_parallel: usize,
     pub heavy_parallel: usize,
     pub request_timeout_secs: u64,
+    /// Commits a filtered log (path or grep) examines per page.
+    pub log_scan: usize,
+    /// Above these, a commit's diff is not shown in full.
+    pub diff_files: usize,
+    pub diff_lines: usize,
+    pub diff_file_lines: usize,
 }
 
 impl Default for LimitsConfig {
@@ -237,6 +246,10 @@ impl Default for LimitsConfig {
             git_parallel: 0,
             heavy_parallel: 2,
             request_timeout_secs: 30,
+            log_scan: 10_000,
+            diff_files: 300,
+            diff_lines: 10_000,
+            diff_file_lines: 2_000,
         }
     }
 }
@@ -458,6 +471,19 @@ impl Config {
         }
         if self.limits.request_timeout_secs == 0 {
             errors.push("limits.request_timeout_secs must be at least 1".into());
+        }
+        if !(1..=1000).contains(&self.ui.log_page) {
+            errors.push("ui.log_page must be between 1 and 1000".into());
+        }
+        for (key, value) in [
+            ("log_scan", self.limits.log_scan),
+            ("diff_files", self.limits.diff_files),
+            ("diff_lines", self.limits.diff_lines),
+            ("diff_file_lines", self.limits.diff_file_lines),
+        ] {
+            if value == 0 {
+                errors.push(format!("limits.{key} must be at least 1"));
+            }
         }
 
         // log

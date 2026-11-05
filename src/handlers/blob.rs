@@ -44,6 +44,7 @@ pub struct BlobPage {
     /// `412 lines`, `12.4 KB`, `Rust`.
     pub facts: Vec<String>,
     pub raw_url: String,
+    pub log_url: String,
     pub download_url: String,
     pub toggle: Option<ViewToggle>,
     pub body: Body,
@@ -132,24 +133,14 @@ pub fn page(ctx: &Ctx, segments: &[Vec<u8>]) -> Response {
                     html: html.unwrap_or_else(|never| match never {}),
                 }
             } else {
-                let first_line = text.lines().next().unwrap_or_default();
-                let syntax = highlight::detect(&path_str, first_line);
-                language = syntax.map(|s| s.name.clone());
-                let lines = match syntax {
-                    Some(syntax) if size <= ctx.config.ui.max_highlight_kb * 1024 => {
-                        let key = Key::Highlight {
-                            blob: oid,
-                            syntax: syntax.name.clone(),
-                        };
-                        ctx.state
-                            .cache
-                            .lines(key, || {
-                                Ok::<_, std::convert::Infallible>(highlight::lines(&text, syntax))
-                            })
-                            .unwrap_or_else(|never| match never {})
-                    }
-                    _ => Arc::new(highlight::plain_lines(&text)),
-                };
+                let (lines, lang) = highlight::cached_lines(
+                    &ctx.state.cache,
+                    oid,
+                    &path_str,
+                    &text,
+                    ctx.config.ui.max_highlight_kb * 1024,
+                );
+                language = lang.map(str::to_string);
                 Body::Code { lines }
             }
         }
@@ -173,6 +164,7 @@ pub fn page(ctx: &Ctx, segments: &[Vec<u8>]) -> Response {
         here: Some(name),
         facts,
         download_url: format!("{raw_url}?download"),
+        log_url: ctx.url("log", &rev.name, &path),
         raw_url,
         toggle,
         body,

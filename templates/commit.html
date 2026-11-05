@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "repo_nav.html" %}
+{% include "crumbs.html" %}
+<section class="commit-head">
+  <h2 class="commit-subject">{{ subject }}</h2>
+  {%- if !body.is_empty() %}
+  <pre class="commit-body">{{ body }}</pre>
+  {%- endif %}
+</section>
+<div class="commit-grid">
+  <dl class="stats commit-meta">
+    {%- for m in meta %}
+    <div class="stat">
+      <dt class="label">{{ m.label }}</dt>
+      <dd>
+        {%- if let Some(title) = m.title %}<span title="{{ title }}">{{ m.value }}</span>{% else %}{{ m.value }}{% endif %}
+        {%- for (text, url) in m.links %}{% if !loop.first %} {% endif %}<a class="sha" href="{{ url }}">{{ text }}</a>{% endfor -%}
+      </dd>
+    </div>
+    {%- endfor %}
+  </dl>
+  <div class="diffstat-hero">
+    {%- if diff.too_many_files %}
+    <p class="diffstat-num">{{ files.len() }}</p>
+    <p class="label dim">Files changed</p>
+    {%- else %}
+    <p class="diffstat-num"><span class="add">+{{ added }}</span> <span class="del">&minus;{{ removed }}</span></p>
+    <p class="label dim">{{ files.len() }} {% if files.len() == 1 %}file{% else %}files{% endif %} changed</p>
+    {%- endif %}
+  </div>
+</div>
+<div class="commit-actions">
+  <div class="blob-actions">
+    <a class="btn-ghost" href="{{ tree_url }}">Browse files</a>
+    <a class="btn-ghost" href="{{ patch_url }}">Patch</a>
+  </div>
+  <div class="blob-actions">
+    <nav class="segmented segmented-sm" aria-label="Whitespace">
+      {%- for t in ws_toggle %}
+      <a href="{{ t.url }}"{% if t.active %} aria-current="true"{% endif %}>{{ t.label }}</a>
+      {%- endfor %}
+    </nav>
+    <span class="label dim context-ctl">
+      {%- if let Some(url) = context_less %}<a href="{{ url }}" aria-label="Less context">&minus;</a>{% else %}<span>&minus;</span>{% endif -%}
+      <span>Context {{ context }}</span>
+      {%- if let Some(url) = context_more %}<a href="{{ url }}" aria-label="More context">+</a>{% else %}<span>+</span>{% endif -%}
+    </span>
+  </div>
+</div>
+{%- if files.is_empty() %}
+<p class="status blob-note">[No changes]</p>
+{%- else %}
+<ol class="file-list">
+  {%- for row in files %}
+  <li class="file-row">
+    <span class="file-status" title="{{ row.status }}">{{ row.letter }}</span>
+    <a class="file-path" href="#{{ row.anchor }}">{% if let Some(from) = row.from %}<span class="dim">{{ from }} &rarr; </span>{% endif %}{{ row.path }}</a>
+    {%- if let Some((a, r)) = row.file.stat %}
+    <span class="file-counts"><span class="add">+{{ a }}</span> <span class="del">&minus;{{ r }}</span></span>
+    {%- else %}
+    <span class="file-counts"></span>
+    {%- endif %}
+    <span class="blocks" aria-hidden="true">{% for b in row.bar %}<i class="{{ b }}"></i>{% endfor %}</span>
+  </li>
+  {%- endfor %}
+</ol>
+{%- endif %}
+{%- if diff.too_many_files %}
+<p class="status blob-note">[Diff too large: {{ files.len() }} files] <a href="{{ patch_url }}">View patch</a></p>
+{%- else %}
+{%- for row in files %}
+<section class="diff-file" id="{{ row.anchor }}">
+  <header class="diff-head">
+    <span class="file-status" title="{{ row.status }}">{{ row.letter }}</span>
+    <span class="diff-path">{% if let Some(from) = row.from %}<span class="dim">{{ from }} &rarr; </span>{% endif %}{{ row.path }}</span>
+    {%- if let Some(url) = row.url %}
+    <a class="label diff-view" href="{{ url }}">View</a>
+    {%- endif %}
+  </header>
+  {%- if let Some((old_mode, new_mode)) = row.file.mode_change %}
+  <p class="label dim diff-note">Mode {{ old_mode }} &rarr; {{ new_mode }}</p>
+  {%- endif %}
+  {%- match row.file.body %}
+  {%- when Body::Hunks with (hunks) %}
+  <div class="code-wrap">
+  <table class="code diff">
+  <tbody>
+  {%- for hunk in hunks %}
+  <tr class="hunk"><td class="ln" colspan="2"></td><td class="lc" colspan="2">{{ hunk.header }}</td></tr>
+  {%- for line in hunk.lines %}
+  <tr class="{{ line.class() }}"><td class="ln">{% if let Some(n) = line.old %}{{ n }}{% endif %}</td><td class="ln">{% if let Some(n) = line.new %}{{ n }}{% endif %}</td><td class="sign">{{ line.sign() }}</td><td class="lc">{{ line.html|safe }}</td></tr>
+  {%- endfor %}
+  {%- endfor %}
+  </tbody>
+  </table>
+  </div>
+  {%- when Body::Unchanged %}
+  <p class="status diff-note">[No content changes]</p>
+  {%- when Body::Binary %}
+  <p class="status diff-note">[Binary file]</p>
+  {%- when Body::Submodule with { old, new } %}
+  <p class="diff-note"><span class="label">Submodule</span> <span class="mono">{% if let Some(o) = old %}{{ o.to_hex_with_len(7) }}{% else %}&mdash;{% endif %} &rarr; {% if let Some(n) = new %}{{ n.to_hex_with_len(7) }}{% else %}&mdash;{% endif %}</span></p>
+  {%- when Body::TooLarge %}
+  <p class="status diff-note">[Diff too large]{% if let Some(url) = row.url %} <a href="{{ url }}">View file</a>{% endif %}</p>
+  {%- when Body::NotShown %}
+  {%- endmatch %}
+</section>
+{%- endfor %}
+{%- endif %}
+{% endblock %}

@@ -27,7 +27,7 @@
       {%- for stat in stats %}
       <div class="stat">
         <dt class="label">{{ stat.label }}</dt>
-        <dd>{% if let Some(title) = stat.title %}<time datetime="{{ title }}" title="{{ title }}">{{ stat.value }}</time>{% else %}{{ stat.value }}{% endif %}</dd>
+        <dd>{% if let Some(url) = stat.url %}<a href="{{ url }}">{{ stat.value }}</a>{% else if let Some(title) = stat.title %}<time datetime="{{ title }}" title="{{ title }}">{{ stat.value }}</time>{% else %}{{ stat.value }}{% endif %}</dd>
       </div>
       {%- endfor %}
     </dl>

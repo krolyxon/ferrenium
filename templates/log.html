@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "repo_nav.html" %}
+{% include "crumbs.html" %}
+<form class="log-tools" method="get" action="{{ action }}" role="search">
+  <label class="field">
+    <span class="label">Grep</span>
+    <input type="search" name="q" value="{{ q }}" autocomplete="off" spellcheck="false" placeholder="Message, author or email">
+  </label>
+</form>
+{%- if days.is_empty() %}
+<p class="status log-note">{% if limit_reached %}[No matches in {{ scan_limit }} commits]{% else %}[No commits]{% endif %}</p>
+{%- endif %}
+{%- for day in days %}
+<section class="log-day">
+  <h2 class="label section-label">{{ day.label }}</h2>
+  <ol class="log">
+    {%- for row in day.rows %}
+    <li class="log-row">
+      <div class="log-main">
+        <a class="log-subject" href="{{ row.url }}">{{ row.subject }}</a>
+        <p class="log-meta">{{ row.author }} · <time datetime="{{ row.iso }}" title="{{ row.iso }}">{{ row.age }}</time></p>
+      </div>
+      <a class="sha log-sha" href="{{ row.url }}">{{ row.id }}</a>
+    </li>
+    {%- endfor %}
+  </ol>
+</section>
+{%- endfor %}
+{%- if limit_reached && !days.is_empty() %}
+<p class="status log-note">[Search limit reached: {{ scan_limit }} commits scanned]</p>
+{%- endif %}
+{%- if newer_url.is_some() || older_url.is_some() %}
+<nav class="pager" aria-label="Pages">
+  {%- if let Some(url) = newer_url %}
+  <a class="label" href="{{ url }}" rel="prev">&lt; {{ newer_label }}</a>
+  {%- else %}
+  <span class="label dim">&lt; Newer</span>
+  {%- endif %}
+  {%- if let Some(url) = older_url %}
+  <a class="label" href="{{ url }}" rel="next">Older &gt;</a>
+  {%- else %}
+  <span class="label dim">Older &gt;</span>
+  {%- endif %}
+</nav>
+{%- endif %}
+{% endblock %}

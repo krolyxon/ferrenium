@@ -42,6 +42,7 @@ theme = "auto"                         # auto | dark | light
 code_font = "Space Mono"
 max_blob_kb = 1024
 max_highlight_kb = 256
+log_page = 50                          # commits per log page
 
 [cache]
 size_mb = 64
@@ -55,6 +56,10 @@ poll_interval_secs = 300               # 0 disables the periodic full rescan
 git_parallel = 0                       # 0 = 2 × CPUs
 heavy_parallel = 2
 request_timeout_secs = 30
+log_scan = 10000                       # commits examined per page by path/grep log filters
+diff_files = 300                       # larger commits show the file list only
+diff_lines = 10000                     # changed lines rendered per commit
+diff_file_lines = 2000                 # changed lines rendered per file
 
 [log]
 level = "info"                         # RUST_LOG takes precedence when set

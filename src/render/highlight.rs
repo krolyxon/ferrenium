@@ -8,12 +8,14 @@
 //! `hl-k` keywords/storage, `hl-d` names/numbers/constants, `hl-s`
 //! strings/punctuation/operators, `hl-c` comments, `hl-x` invalid.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use syntect::parsing::{ParseState, Scope, ScopeStack, SyntaxReference, SyntaxSet};
 use syntect::util::LinesWithEndings;
 
 use super::escape_html;
+use crate::cache::{Cache, Key};
+use crate::git::ObjectId;
 
 static SYNTAXES: OnceLock<SyntaxSet> = OnceLock::new();
 
@@ -185,6 +187,44 @@ pub fn lines(text: &str, syntax: &SyntaxReference) -> Vec<String> {
         out.push(writer.finish());
     }
     out
+}
+
+/// Lines longer than this (minified code) make syntect crawl; such files
+/// are shown plain.
+const MAX_LINE_BYTES: usize = 5000;
+
+/// HTML lines of blob `oid` (the file at `path`, contents `text`),
+/// highlighted when a syntax is detected, the blob is at most `max_bytes`
+/// and no line is minified-long, plain otherwise. Highlighted lines are cached by blob and
+/// shared by every view of it. Also returns the detected language.
+pub fn cached_lines(
+    cache: &Cache,
+    oid: ObjectId,
+    path: &str,
+    text: &str,
+    max_bytes: u64,
+) -> (Arc<Vec<String>>, Option<&'static str>) {
+    let first_line = text.lines().next().unwrap_or_default();
+    let syntax = detect(path, first_line);
+    let language = syntax.map(|s| s.name.as_str());
+    let lines = match syntax {
+        Some(syntax)
+            if text.len() as u64 <= max_bytes
+                && !text.lines().any(|l| l.len() > MAX_LINE_BYTES) =>
+        {
+            let key = Key::Highlight {
+                blob: oid,
+                syntax: syntax.name.clone(),
+            };
+            cache
+                .lines(key, || {
+                    Ok::<_, std::convert::Infallible>(lines(text, syntax))
+                })
+                .unwrap_or_else(|never| match never {})
+        }
+        _ => Arc::new(plain_lines(text)),
+    };
+    (lines, language)
 }
 
 /// Escaped lines without highlighting.

@@ -111,12 +111,15 @@ async fn summary_shows_tree_readme_and_rail() {
     assert!(html.contains(r#"src="/rich/raw/main/img/logo.png""#));
     assert!(!html.contains("alert(1)"));
     // Rail.
-    assert!(html.contains("<dd>2</dd>"), "commit count: {html}");
+    assert!(
+        html.contains(r#"<dd><a href="/rich/log">2</a></dd>"#),
+        "commit count: {html}"
+    );
     assert!(html.contains("https://git.example.com/rich"));
     assert!(html.contains("git@example.com:rich"));
     assert!(html.contains(">HTTPS<") && html.contains(">SSH<"));
     assert!(html.contains("add everything"));
-    assert!(html.contains(&format!(r#"href="/rich/tree/{}""#, s.rich.head)));
+    assert!(html.contains(&format!(r#"href="/rich/commit/{}""#, s.rich.head)));
     // Nav + picker.
     assert!(html.contains(r#"class="label active" href="/rich" aria-current="page">Summary"#));
     assert!(html.contains(r#"href="/rich/tree/feature/x""#));
@@ -172,7 +175,7 @@ async fn dispatcher_matches_repos_and_revisions() {
         ("/rich/tree/nope", "UNKNOWN REVISION"),
         ("/rich/tree/main/nope", "PATH NOT FOUND IN main"),
         ("/rich/blob/main/vendor/lib", "PATH IS A SUBMODULE"),
-        ("/rich/log", "PAGE NOT FOUND"),
+        ("/rich/blame-nope", "PAGE NOT FOUND"),
         ("/rich/tree/main/../x", "PAGE NOT FOUND"),
         ("/-/nope", "PAGE NOT FOUND"),
     ] {

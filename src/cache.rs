@@ -6,9 +6,11 @@
 
 use std::sync::Arc;
 
-use crate::git::ObjectId;
+use crate::git::log::{LogPage, LogQuery};
 use crate::git::refs::RefList;
 use crate::git::tree::TreeEntry;
+use crate::git::{Mailmap, ObjectId};
+use crate::render::diff::{CommitDiff, Options as DiffOptions};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
@@ -28,6 +30,15 @@ pub enum Key {
         repo: String,
         generation: u64,
     },
+    Log {
+        tip: ObjectId,
+        query: LogQuery,
+    },
+    Diff {
+        commit: ObjectId,
+        options: DiffOptions,
+    },
+    Mailmap(ObjectId),
 }
 
 #[derive(Clone)]
@@ -37,6 +48,9 @@ pub enum Value {
     Tree(Arc<Vec<TreeEntry>>),
     Count(u64),
     Refs(Arc<RefList>),
+    Log(Arc<LogPage>),
+    Diff(Arc<CommitDiff>),
+    Mailmap(Arc<Mailmap>),
 }
 
 impl Value {
@@ -47,6 +61,9 @@ impl Value {
             Value::Tree(entries) => entries.iter().map(|e| e.name.len() + 64).sum(),
             Value::Count(_) => 8,
             Value::Refs(refs) => refs.weight(),
+            Value::Log(page) => page.weight(),
+            Value::Diff(diff) => diff.weight(),
+            Value::Mailmap(map) => map.weight(),
         }
     }
 }
@@ -64,6 +81,9 @@ impl Cache {
                     Key::Highlight { syntax, .. } => syntax.len(),
                     Key::Markdown { context, .. } => context.len(),
                     Key::Refs { repo, .. } => repo.len(),
+                    Key::Log { query, .. } => {
+                        query.path.len() + query.grep.as_ref().map_or(0, String::len)
+                    }
                     _ => 0,
                 };
                 u32::try_from(64 + key + value.weight()).unwrap_or(u32::MAX)
@@ -132,6 +152,41 @@ impl Cache {
     ) -> Result<Arc<RefList>, E> {
         match self.get_or(key, || compute().map(|v| Value::Refs(Arc::new(v))))? {
             Value::Refs(v) => Ok(v),
+            _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    pub fn log<E>(
+        &self,
+        key: Key,
+        compute: impl FnOnce() -> Result<LogPage, E>,
+    ) -> Result<Arc<LogPage>, E> {
+        match self.get_or(key, || compute().map(|v| Value::Log(Arc::new(v))))? {
+            Value::Log(v) => Ok(v),
+            _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    pub fn diff<E>(
+        &self,
+        key: Key,
+        compute: impl FnOnce() -> Result<CommitDiff, E>,
+    ) -> Result<Arc<CommitDiff>, E> {
+        match self.get_or(key, || compute().map(|v| Value::Diff(Arc::new(v))))? {
+            Value::Diff(v) => Ok(v),
+            _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    pub fn mailmap<E>(
+        &self,
+        blob: ObjectId,
+        compute: impl FnOnce() -> Result<Mailmap, E>,
+    ) -> Result<Arc<Mailmap>, E> {
+        match self.get_or(Key::Mailmap(blob), || {
+            compute().map(|v| Value::Mailmap(Arc::new(v)))
+        })? {
+            Value::Mailmap(v) => Ok(v),
             _ => unreachable!("cache key/value kind mismatch"),
         }
     }

@@ -38,6 +38,33 @@ pub fn iso(then: i64) -> String {
         .unwrap_or_default()
 }
 
+fn zoned(then: i64, offset: i32) -> Option<jiff::Zoned> {
+    let offset = jiff::tz::Offset::from_seconds(offset).unwrap_or(jiff::tz::Offset::UTC);
+    let ts = jiff::Timestamp::from_second(then).ok()?;
+    Some(ts.to_zoned(jiff::tz::TimeZone::fixed(offset)))
+}
+
+/// `Thu, 5 Nov 2026 14:03:00 +0100` in the recorded offset (patch headers).
+pub fn rfc2822(then: i64, offset: i32) -> String {
+    zoned(then, offset)
+        .map(|z| z.strftime("%a, %-d %b %Y %H:%M:%S %z").to_string())
+        .unwrap_or_default()
+}
+
+/// `2026-11-05 14:03 +0100` in the recorded offset.
+pub fn local(then: i64, offset: i32) -> String {
+    zoned(then, offset)
+        .map(|z| z.strftime("%Y-%m-%d %H:%M %z").to_string())
+        .unwrap_or_default()
+}
+
+/// `Nov 5, 2026` (UTC), for grouping commits by day.
+pub fn day(then: i64) -> String {
+    jiff::Timestamp::from_second(then)
+        .map(|t| t.strftime("%b %-d, %Y").to_string())
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,5 +86,8 @@ mod tests {
     #[test]
     fn iso_format() {
         assert_eq!(iso(0), "1970-01-01T00:00:00Z");
+        assert_eq!(rfc2822(0, 3600), "Thu, 1 Jan 1970 01:00:00 +0100");
+        assert_eq!(local(0, -7200), "1969-12-31 22:00 -0200");
+        assert_eq!(day(86400 * 5), "Jan 6, 1970");
     }
 }

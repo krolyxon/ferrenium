@@ -11,11 +11,11 @@ use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
-use super::{blob, error, raw, refs, summary, tree};
+use super::{blob, commit, error, log, raw, refs, summary, tree};
 use crate::cache::Key;
 use crate::config::Config;
 use crate::git::refs::{RefKind, RefList, Rev};
-use crate::git::{self, Handle};
+use crate::git::{self, Handle, Mailmap, ObjectId};
 use crate::index::Repo;
 use crate::render::{encode_bytes, encode_path};
 use crate::state::AppState;
@@ -29,6 +29,14 @@ pub struct PageQuery {
     pub view: Option<String>,
     /// Raw: serve as an attachment.
     pub download: Option<String>,
+    /// Log: cursor (the last commit of the previous page).
+    pub after: Option<String>,
+    /// Log: message/author filter.
+    pub q: Option<String>,
+    /// Commit: lines of context.
+    pub context: Option<String>,
+    /// Commit: `ignore` compares lines ignoring whitespace.
+    pub ws: Option<String>,
 }
 
 pub struct RepoRequest {
@@ -66,6 +74,8 @@ pub fn handle(state: &AppState, req: RepoRequest) -> Response {
         b"tree" => tree::page(&ctx, rest),
         b"blob" => blob::page(&ctx, rest),
         b"raw" => raw::serve(&ctx, rest),
+        b"log" => log::page(&ctx, rest),
+        b"commit" => commit::page(&ctx, rest),
         b"refs" if rest.is_empty() => refs::page(&ctx),
         _ => ctx.not_found("PAGE NOT FOUND"),
     }
@@ -89,6 +99,28 @@ impl Ctx<'_> {
             url.push_str(&encode_bytes(path));
         }
         url
+    }
+
+    pub fn commit_url(&self, id: &ObjectId) -> String {
+        format!("{}/commit/{id}", self.repo_url())
+    }
+
+    /// The `.mailmap` on the default branch (empty when there is none).
+    pub fn mailmap(&self) -> Arc<Mailmap> {
+        let blob = self
+            .repo
+            .meta
+            .head
+            .and_then(|head| git::mailmap_blob(&self.git, head));
+        let Some(blob) = blob else {
+            return Arc::default();
+        };
+        self.state
+            .cache
+            .mailmap(blob, || {
+                git::tree::blob(&self.git, blob).map(|data| Mailmap::parse(&data))
+            })
+            .unwrap_or_default()
     }
 
     pub fn not_found(&self, message: &str) -> Response {
@@ -171,9 +203,15 @@ impl Ctx<'_> {
         current: Option<&Rev>,
         picker: impl Fn(&str) -> String,
     ) -> RepoNav {
-        let tree_url = match current {
-            Some(rev) => self.url("tree", &rev.name, b""),
-            None => format!("{}/tree", self.repo_url()),
+        let (tree_url, log_url) = match current {
+            Some(rev) => (
+                self.url("tree", &rev.name, b""),
+                self.url("log", &rev.name, b""),
+            ),
+            None => (
+                format!("{}/tree", self.repo_url()),
+                format!("{}/log", self.repo_url()),
+            ),
         };
         let picker = current.and_then(|rev| {
             let refs = self.refs().ok()?;
@@ -206,6 +244,7 @@ impl Ctx<'_> {
             name: self.repo.name.clone(),
             url: self.repo_url(),
             tree_url,
+            log_url,
             refs_url: format!("{}/refs", self.repo_url()),
             active: active.as_str(),
             picker,
@@ -240,6 +279,7 @@ pub fn short(oid: &str) -> String {
 pub enum Active {
     Summary,
     Tree,
+    Log,
     Refs,
 }
 
@@ -248,6 +288,7 @@ impl Active {
         match self {
             Active::Summary => "summary",
             Active::Tree => "tree",
+            Active::Log => "log",
             Active::Refs => "refs",
         }
     }
@@ -257,8 +298,9 @@ pub struct RepoNav {
     pub name: String,
     pub url: String,
     pub tree_url: String,
+    pub log_url: String,
     pub refs_url: String,
-    /// `summary`, `tree` or `refs`.
+    /// `summary`, `tree`, `log` or `refs`.
     pub active: &'static str,
     pub picker: Option<Picker>,
 }

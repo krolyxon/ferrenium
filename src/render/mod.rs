@@ -1,5 +1,6 @@
 //! Presentation helpers shared by handlers and templates.
 
+pub mod diff;
 pub mod highlight;
 pub mod markdown;
 pub mod time;

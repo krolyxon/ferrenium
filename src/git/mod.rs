@@ -1,5 +1,7 @@
 //! All repository access goes through this module; nothing else touches gix.
 
+pub mod diff;
+pub mod log;
 pub mod refs;
 pub mod tree;
 
@@ -223,4 +225,103 @@ pub fn commit_count(repo: &gix::Repository, tip: ObjectId) -> anyhow::Result<u64
         count += 1;
     }
     Ok(count)
+}
+
+/// Everything the commit page shows about a commit.
+#[derive(Debug, Clone)]
+pub struct CommitDetail {
+    pub info: CommitInfo,
+    /// The message after the subject line, trimmed.
+    pub body: String,
+    /// The full message as stored, for patches.
+    pub message: String,
+    pub author: Person,
+    pub committer: Person,
+    pub parents: Vec<ObjectId>,
+    pub tree: ObjectId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Person {
+    pub name: String,
+    pub email: String,
+    /// Unix seconds and the UTC offset in seconds, as recorded.
+    pub time: i64,
+    pub offset: i32,
+}
+
+pub fn commit_detail(repo: &gix::Repository, id: ObjectId) -> anyhow::Result<CommitDetail> {
+    let commit = repo.find_commit(id).context("commit not found")?;
+    let decoded = commit.decode().context("malformed commit")?;
+    let person = |sig: gix::actor::SignatureRef<'_>| {
+        let time = sig.time().unwrap_or_default();
+        Person {
+            name: sig.name.to_str_lossy().trim().to_string(),
+            email: sig.email.to_str_lossy().trim().to_string(),
+            time: time.seconds,
+            offset: time.offset,
+        }
+    };
+    let message = decoded.message();
+    Ok(CommitDetail {
+        info: commit_info(repo, id)?,
+        body: message
+            .body()
+            .map(|b| b.to_str_lossy().trim().to_string())
+            .unwrap_or_default(),
+        message: decoded.message.to_str_lossy().into_owned(),
+        author: person(decoded.author().context("malformed author")?),
+        committer: person(decoded.committer().context("malformed committer")?),
+        parents: decoded.parents().collect(),
+        tree: decoded.tree(),
+    })
+}
+
+/// A `.mailmap`: canonical names and emails for authors.
+#[derive(Default)]
+pub struct Mailmap(gix::mailmap::Snapshot);
+
+impl Mailmap {
+    pub fn parse(data: &[u8]) -> Self {
+        Mailmap(gix::mailmap::Snapshot::from_bytes(data))
+    }
+
+    /// Canonical `(name, email)` for an identity.
+    pub fn resolve(&self, name: &str, email: &str) -> (String, String) {
+        let signature = gix::actor::SignatureRef {
+            name: name.as_bytes().as_bstr(),
+            email: email.as_bytes().as_bstr(),
+            time: "",
+        };
+        match self.0.try_resolve_ref(signature) {
+            Some(found) => (
+                found
+                    .name
+                    .map_or_else(|| name.to_string(), |n| n.to_str_lossy().into_owned()),
+                found
+                    .email
+                    .map_or_else(|| email.to_string(), |e| e.to_str_lossy().into_owned()),
+            ),
+            None => (name.to_string(), email.to_string()),
+        }
+    }
+
+    pub fn weight(&self) -> usize {
+        self.0
+            .iter()
+            .map(|e| {
+                64 + e.old_email().len()
+                    + e.old_name().map_or(0, |n| n.len())
+                    + e.new_email().map_or(0, |n| n.len())
+                    + e.new_name().map_or(0, |n| n.len())
+            })
+            .sum()
+    }
+}
+
+/// The `.mailmap` blob at the root of `commit`, if there is one.
+pub fn mailmap_blob(repo: &gix::Repository, commit: ObjectId) -> Option<ObjectId> {
+    let tree = repo.find_commit(commit).ok()?.tree().ok()?;
+    let entry = tree.find_entry(".mailmap")?;
+    entry.mode().is_blob().then(|| entry.object_id())
 }

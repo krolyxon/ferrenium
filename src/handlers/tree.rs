@@ -41,6 +41,7 @@ pub struct TreePage {
     pub rows: Vec<TreeRow>,
     pub entries: usize,
     pub tree_id: String,
+    pub log_url: String,
     pub readme: Option<Readme>,
 }
 
@@ -103,6 +104,7 @@ pub fn page(ctx: &Ctx, segments: &[Vec<u8>]) -> Response {
         rows,
         entries: entries.len(),
         tree_id: short(&tree_id.to_string()),
+        log_url: ctx.url("log", &rev.name, &path),
         readme: dir_readme(ctx, &rev, &path, &entries),
     };
     let mut res = render(StatusCode::OK, &page);

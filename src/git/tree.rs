@@ -20,7 +20,7 @@ pub enum EntryKind {
 }
 
 impl EntryKind {
-    fn from_gix(kind: GixKind) -> Self {
+    pub(super) fn from_gix(kind: GixKind) -> Self {
         match kind {
             GixKind::Tree => EntryKind::Tree,
             GixKind::Blob => EntryKind::Blob,
@@ -28,6 +28,12 @@ impl EntryKind {
             GixKind::Link => EntryKind::Symlink,
             GixKind::Commit => EntryKind::Submodule,
         }
+    }
+
+    /// Same kind of object, ignoring the executable bit.
+    pub fn same_type(self, other: EntryKind) -> bool {
+        let regular = |k| matches!(k, EntryKind::Blob | EntryKind::Executable);
+        self == other || (regular(self) && regular(other))
     }
 
     pub fn is_blob(self) -> bool {
@@ -82,6 +88,22 @@ pub fn lookup(
         EntryKind::Submodule => PathTarget::Submodule(oid),
         kind => PathTarget::Blob(oid, kind),
     }))
+}
+
+/// Id and kind of whatever `path` names in `commit`'s tree. `None` when
+/// the path doesn't exist, or the commit itself is missing (shallow clones).
+pub fn entry_at(
+    repo: &gix::Repository,
+    commit: ObjectId,
+    path: &[u8],
+) -> anyhow::Result<Option<(ObjectId, EntryKind)>> {
+    let Ok(commit) = repo.find_commit(commit) else {
+        return Ok(None);
+    };
+    let tree = commit.tree().context("commit has no tree")?;
+    Ok(tree
+        .lookup_entry_by_path(as_path(path))?
+        .map(|entry| (entry.object_id(), EntryKind::from_gix(entry.mode().kind()))))
 }
 
 /// Entries of a tree: directories first, then files, each by name.

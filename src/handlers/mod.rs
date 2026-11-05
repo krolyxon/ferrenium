@@ -1,8 +1,10 @@
 //! Request handlers. Each page is an askama template that embeds a [`Layout`].
 
 pub mod blob;
+pub mod commit;
 pub mod error;
 pub mod index;
+pub mod log;
 pub mod raw;
 pub mod refs;
 pub mod repo;

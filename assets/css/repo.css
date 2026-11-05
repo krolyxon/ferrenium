@@ -554,6 +554,319 @@ html:not(.js) .copy-status {
   white-space: nowrap;
 }
 
+/* ---- Log ------------------------------------------------------------------ */
+
+.log-tools {
+  margin-top: var(--space-lg);
+  max-width: 420px;
+}
+
+.log-day {
+  margin-top: var(--space-xl);
+}
+
+.log {
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.log-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.log-main {
+  min-width: 0;
+}
+
+.log-subject {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.log-meta {
+  margin-top: var(--space-2xs);
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-secondary);
+}
+
+.log-sha {
+  flex: none;
+  font-size: var(--caption);
+  color: var(--interactive);
+}
+
+.log-note {
+  margin-top: var(--space-lg);
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+}
+
+.pager a,
+.pager span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ---- Commit --------------------------------------------------------------- */
+
+.commit-head {
+  margin-top: var(--space-lg);
+}
+
+.commit-subject {
+  font-size: var(--heading);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--text-display);
+  overflow-wrap: anywhere;
+}
+
+.commit-body {
+  max-width: 72ch;
+  margin-top: var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+
+.commit-grid {
+  display: grid;
+  gap: var(--space-xl);
+  margin-top: var(--space-xl);
+}
+
+@media (min-width: 768px) {
+  .commit-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+}
+
+/* The one break on the commit page: a hero diffstat. */
+.diffstat-hero {
+  text-align: right;
+}
+
+.diffstat-num {
+  font-family: var(--font-mono);
+  font-size: 48px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text-display);
+  white-space: nowrap;
+}
+
+.diffstat-hero .label {
+  margin-top: var(--space-sm);
+}
+
+.add {
+  color: var(--success);
+}
+
+.del {
+  color: var(--accent);
+}
+
+.commit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+}
+
+.context-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.context-ctl a,
+.context-ctl > span:first-child,
+.context-ctl > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.file-list {
+  list-style: none;
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 40px;
+  padding-block: var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.file-status {
+  flex: none;
+  width: 1.5em;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-secondary);
+}
+
+.file-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--body-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.file-path .dim,
+.diff-path .dim {
+  color: var(--text-disabled);
+}
+
+.file-counts {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  white-space: nowrap;
+}
+
+.blocks {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+
+.blocks i {
+  width: 8px;
+  height: 8px;
+  background: var(--segment-empty);
+}
+
+.blocks i.add {
+  background: var(--success);
+}
+
+.blocks i.del {
+  background: var(--accent);
+}
+
+.diff-file {
+  margin-top: var(--space-2xl);
+}
+
+.diff-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 44px;
+  background: var(--black);
+  border-bottom: 1px solid var(--border-visible);
+}
+
+.diff-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--body-sm);
+  color: var(--text-display);
+  overflow-wrap: anywhere;
+}
+
+.diff-view {
+  flex: none;
+}
+
+.diff-note {
+  padding-block: var(--space-md);
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.diff-file .code-wrap {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.code.diff .ln {
+  padding: 0 var(--space-sm);
+  color: var(--text-disabled);
+  font-size: 12px;
+}
+
+.code.diff .ln + .ln {
+  border-left: 0;
+}
+
+.code.diff .sign {
+  width: 1%;
+  padding: 0 var(--space-xs) 0 var(--space-sm);
+  color: var(--text-disabled);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.code.diff .lc {
+  padding-left: 0;
+}
+
+.code.diff tr.add .ln:first-child {
+  border-left-color: var(--success);
+}
+
+.code.diff tr.add .sign {
+  color: var(--success);
+}
+
+.code.diff tr.del .ln:first-child {
+  border-left-color: var(--accent);
+}
+
+.code.diff tr.del .sign {
+  color: var(--accent);
+}
+
+.code.diff tr.del .lc {
+  opacity: 0.55;
+}
+
+.code.diff tr.hunk td {
+  padding-block: var(--space-xs);
+  color: var(--text-disabled);
+}
+
+.code.diff tr.hunk .lc {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.code.diff tr.hunk:not(:first-child) td {
+  border-top: 1px solid var(--border);
+}
+
 /* ---- Markdown ------------------------------------------------------------ */
 
 .markdown {

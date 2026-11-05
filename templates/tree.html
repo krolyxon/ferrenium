@@ -4,7 +4,7 @@
 {% include "repo_nav.html" %}
 {% include "crumbs.html" %}
 {% call m::tree_list(rows, layout.static_base) %}{% endcall %}
-<p class="label dim tree-foot">{{ entries }} {% if entries == 1 %}entry{% else %}entries{% endif %} · Tree {{ tree_id }}</p>
+<p class="label dim tree-foot">{{ entries }} {% if entries == 1 %}entry{% else %}entries{% endif %} · Tree {{ tree_id }} · <a href="{{ log_url }}">History</a></p>
 {%- if let Some(readme) = readme %}
 {% call m::readme(readme) %}{% endcall %}
 {%- endif %}

@@ -17,6 +17,7 @@ pub struct Stat {
     pub label: &'static str,
     pub value: String,
     pub title: Option<String>,
+    pub url: Option<String>,
 }
 
 pub struct CloneUrl {
@@ -117,16 +118,19 @@ fn stats(ctx: &Ctx, commits: Option<u64>) -> Vec<Stat> {
             label: "Commits",
             value: commits.unwrap_or(0).to_string(),
             title: None,
+            url: commits.map(|_| format!("{}/log", ctx.repo_url())),
         },
         Stat {
             label: "Branches",
             value: meta.branches.to_string(),
             title: None,
+            url: None,
         },
         Stat {
             label: "Tags",
             value: meta.tags.to_string(),
             title: None,
+            url: None,
         },
     ];
     if let Some(t) = meta.last_activity {
@@ -134,6 +138,7 @@ fn stats(ctx: &Ctx, commits: Option<u64>) -> Vec<Stat> {
             label: "Updated",
             value: time::relative(t, time::now()),
             title: Some(time::iso(t)),
+            url: None,
         });
     }
     if let Some(owner) = &meta.owner {
@@ -141,6 +146,7 @@ fn stats(ctx: &Ctx, commits: Option<u64>) -> Vec<Stat> {
             label: "Owner",
             value: owner.clone(),
             title: None,
+            url: None,
         });
     }
     stats
@@ -150,10 +156,13 @@ fn latest(ctx: &Ctx, info: &CommitInfo) -> Latest {
     let id = info.id.to_string();
     Latest {
         subject: info.subject.clone(),
-        author: info.author_name.clone(),
+        author: ctx
+            .mailmap()
+            .resolve(&info.author_name, &info.author_email)
+            .0,
         age: time::relative(info.committer_time, time::now()),
         iso: time::iso(info.committer_time),
-        url: ctx.url("tree", &id, b""),
+        url: ctx.commit_url(&info.id),
         id: short(&id),
     }
 }
