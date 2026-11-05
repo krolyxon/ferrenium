@@ -6,10 +6,12 @@
 
 use std::sync::Arc;
 
+use crate::git::blame::BlameHunk;
 use crate::git::log::{LogPage, LogQuery};
 use crate::git::refs::RefList;
 use crate::git::tree::TreeEntry;
 use crate::git::{Mailmap, ObjectId};
+use crate::index::languages::Stats as LanguageStats;
 use crate::render::diff::{CommitDiff, Options as DiffOptions};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -39,6 +41,14 @@ pub enum Key {
         options: DiffOptions,
     },
     Mailmap(ObjectId),
+    Blame {
+        commit: ObjectId,
+        path: Vec<u8>,
+    },
+    /// Every file path in a tree (the file finder).
+    Paths(ObjectId),
+    /// Language statistics of a tree.
+    Languages(ObjectId),
 }
 
 #[derive(Clone)]
@@ -51,6 +61,9 @@ pub enum Value {
     Log(Arc<LogPage>),
     Diff(Arc<CommitDiff>),
     Mailmap(Arc<Mailmap>),
+    Blame(Arc<Vec<BlameHunk>>),
+    Paths(Arc<(Vec<String>, bool)>),
+    Languages(Arc<LanguageStats>),
 }
 
 impl Value {
@@ -64,6 +77,12 @@ impl Value {
             Value::Log(page) => page.weight(),
             Value::Diff(diff) => diff.weight(),
             Value::Mailmap(map) => map.weight(),
+            Value::Languages(stats) => stats.weight(),
+            Value::Paths(paths) => paths.0.iter().map(|p| p.len() + 24).sum(),
+            Value::Blame(hunks) => hunks
+                .iter()
+                .map(|h| 48 + h.source_path.as_ref().map_or(0, String::len))
+                .sum(),
         }
     }
 }
@@ -81,6 +100,7 @@ impl Cache {
                     Key::Highlight { syntax, .. } => syntax.len(),
                     Key::Markdown { context, .. } => context.len(),
                     Key::Refs { repo, .. } => repo.len(),
+                    Key::Blame { path, .. } => path.len(),
                     Key::Log { query, .. } => {
                         query.path.len() + query.grep.as_ref().map_or(0, String::len)
                     }
@@ -188,6 +208,51 @@ impl Cache {
         })? {
             Value::Mailmap(v) => Ok(v),
             _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    pub fn blame<E>(
+        &self,
+        key: Key,
+        compute: impl FnOnce() -> Result<Vec<BlameHunk>, E>,
+    ) -> Result<Arc<Vec<BlameHunk>>, E> {
+        match self.get_or(key, || compute().map(|v| Value::Blame(Arc::new(v))))? {
+            Value::Blame(v) => Ok(v),
+            _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    pub fn paths<E>(
+        &self,
+        tree: ObjectId,
+        compute: impl FnOnce() -> Result<(Vec<String>, bool), E>,
+    ) -> Result<Arc<(Vec<String>, bool)>, E> {
+        match self.get_or(Key::Paths(tree), || {
+            compute().map(|v| Value::Paths(Arc::new(v)))
+        })? {
+            Value::Paths(v) => Ok(v),
+            _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    pub fn languages<E>(
+        &self,
+        tree: ObjectId,
+        compute: impl FnOnce() -> Result<LanguageStats, E>,
+    ) -> Result<Arc<LanguageStats>, E> {
+        match self.get_or(Key::Languages(tree), || {
+            compute().map(|v| Value::Languages(Arc::new(v)))
+        })? {
+            Value::Languages(v) => Ok(v),
+            _ => unreachable!("cache key/value kind mismatch"),
+        }
+    }
+
+    /// Language statistics if they are cached; never computes.
+    pub fn peek_languages(&self, tree: ObjectId) -> Option<Arc<LanguageStats>> {
+        match self.inner.get(&Key::Languages(tree))? {
+            Value::Languages(v) => Some(v),
+            _ => None,
         }
     }
 

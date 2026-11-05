@@ -7,7 +7,7 @@
     {%- for row in rows %}
     <tr>
       <td class="ref-name"><a href="{{ row.url }}">{{ row.name }}</a>{% if row.is_default %} <span class="chip">Default</span>{% endif %}</td>
-      <td class="ref-subject">{{ row.subject }}</td>
+      <td class="ref-subject">{{ row.subject }}{% if !row.archives.is_empty() %}<span class="ref-archives">{% for (label, url) in row.archives %}<a class="label" href="{{ url }}" rel="nofollow">{{ label }}</a>{% endfor %}</span>{% endif %}</td>
       <td class="num"><time datetime="{{ row.iso }}" title="{{ row.iso }}">{{ row.age }}</time></td>
     </tr>
     {%- endfor %}

@@ -1,5 +1,7 @@
 //! All repository access goes through this module; nothing else touches gix.
 
+pub mod archive;
+pub mod blame;
 pub mod diff;
 pub mod log;
 pub mod refs;

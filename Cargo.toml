@@ -10,12 +10,17 @@ publish = false
 ammonia = "4.2"
 anyhow = "1.0.104"
 arc-swap = "1.9.3"
+bytes = "1"
 askama = "0.16.1"
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "query"] }
 clap = { version = "4.6.7", features = ["derive", "env"] }
 comrak = { version = "0.59", default-features = false }
+fancy-regex = "0.16"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 # No `extras`/`interrupt`: they install their own signal handlers.
 gix = { version = "0.90.0", default-features = false, features = ["max-performance", "revision", "blob-diff", "blame", "mailmap", "worktree-archive", "sha1"] }
+# Snapshot formats (gix only enables the bare crate).
+gix-archive = { version = "0.39", default-features = false, features = ["tar_gz", "zip"] }
 jiff = "0.2.39"
 mime_guess = "2.0.5"
 moka = { version = "0.12", features = ["sync"] }
@@ -25,7 +30,8 @@ sd-notify = "0.5.0"
 serde = { version = "1.0.229", features = ["derive"] }
 syntect = { version = "5.3", default-features = false, features = ["parsing", "html", "regex-fancy"] }
 thiserror = "2.0.21"
-tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time", "process", "io-util"] }
+tokio-util = { version = "0.7", features = ["io", "io-util"] }
 toml = "1.2.0"
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.7.1", features = ["trace", "timeout", "catch-panic", "compression-gzip", "compression-br", "set-header"] }

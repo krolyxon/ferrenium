@@ -11,6 +11,9 @@
 {%- if let Some(css) = layout.site_css %}
 <link rel="stylesheet" href="{{ css }}">
 {%- endif %}
+{%- if let Some(feed) = layout.feed %}
+<link rel="alternate" type="application/atom+xml" title="Commits" href="{{ feed }}">
+{%- endif %}
 <link rel="icon" href="{{ layout.static_base }}icons/favicon.svg" type="image/svg+xml">
 <script src="{{ layout.static_base }}js/theme.js"></script>
 <script src="{{ layout.static_base }}js/app.js" defer></script>

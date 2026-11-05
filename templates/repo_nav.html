@@ -4,6 +4,7 @@
     <a class="label{% if nav.active == "tree" %} active{% endif %}" href="{{ nav.tree_url }}"{% if nav.active == "tree" %} aria-current="page"{% endif %}>Tree</a>
     <a class="label{% if nav.active == "log" %} active{% endif %}" href="{{ nav.log_url }}"{% if nav.active == "log" %} aria-current="page"{% endif %}>Log</a>
     <a class="label{% if nav.active == "refs" %} active{% endif %}" href="{{ nav.refs_url }}"{% if nav.active == "refs" %} aria-current="page"{% endif %}>Refs</a>
+    <a class="label{% if nav.active == "find" %} active{% endif %}" href="{{ nav.find_url }}"{% if nav.active == "find" %} aria-current="page"{% endif %}>Find</a>
   </nav>
   {%- if let Some(picker) = nav.picker %}
   <details class="ref-picker">

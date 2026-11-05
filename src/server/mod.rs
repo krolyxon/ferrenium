@@ -1,6 +1,7 @@
 //! HTTP server: router, middleware, listeners, signals and shutdown.
 
 pub mod assets;
+pub mod clone;
 pub mod dispatch;
 pub mod headers;
 
@@ -14,7 +15,7 @@ use axum::extract::{Request, State};
 use axum::http::{HeaderValue, StatusCode, Uri, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::routing::get;
+use axum::routing::{any, get};
 use sd_notify::NotifyState;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::watch;
@@ -43,7 +44,8 @@ pub fn app(state: Arc<AppState>) -> Router {
         .route("/-/health", get(health))
         .route("/-/site.css", get(assets::site_css))
         .route("/-/static/{hash}/{*path}", get(assets::serve))
-        .route("/{*path}", get(dispatch::dispatch))
+        .route("/robots.txt", get(robots))
+        .route("/{*path}", any(dispatch::dispatch))
         .fallback(handlers::error::not_found)
         .with_state(state.clone());
 
@@ -72,8 +74,14 @@ pub fn app(state: Arc<AppState>) -> Router {
     } else {
         compression.no_gzip().no_br()
     }
-    // woff2 is already compressed.
-    .compress_when(DefaultPredicate::new().and(NotForContentType::const_new("font/")));
+    // Fonts, archives and packfiles are already compressed.
+    .compress_when(
+        DefaultPredicate::new()
+            .and(NotForContentType::const_new("font/"))
+            .and(NotForContentType::const_new("application/zip"))
+            .and(NotForContentType::const_new("application/gzip"))
+            .and(NotForContentType::const_new("application/x-git-")),
+    );
 
     let [csp, nosniff, referrer, frame] = headers::layers();
     routes.layer(
@@ -142,6 +150,37 @@ async fn strip_base_path(State(base): State<Arc<str>>, mut req: Request, next: N
     }
 }
 
+/// Keep crawlers off the expensive pages: blame, archives, patches,
+/// searches, path histories, deep log pages, diff options and clones.
+async fn robots(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let base = state.config.load().server.base_path.clone();
+    let mut text = String::from("User-agent: *\n");
+    for rule in [
+        "*/blame/",
+        "*/archive/",
+        "*.patch$",
+        "*/find/",
+        "*/log/*/*",
+        "*?q=",
+        "*&q=",
+        "*?after=",
+        "*&after=",
+        "*?context=",
+        "*?ws=",
+        "*/info/refs",
+        "*/git-upload-pack",
+    ] {
+        text.push_str(&format!("Disallow: {base}{rule}\n"));
+    }
+    (
+        [(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=86400"),
+        )],
+        text,
+    )
+}
+
 async fn health() -> impl IntoResponse {
     (
         [(header::CACHE_CONTROL, HeaderValue::from_static("no-store"))],
@@ -166,6 +205,7 @@ pub async fn run(state: Arc<AppState>) -> anyhow::Result<()> {
     let mut seen = Default::default();
     index::watch::log_scan(&stats, &state.index.load(), &mut seen, true);
     tokio::spawn(index::watch::run(state.clone(), seen));
+    tokio::spawn(index::languages::warm(state.clone()));
     // Parse the embedded grammars now rather than on the first blob view.
     tokio::task::spawn_blocking(|| {
         let start = std::time::Instant::now();

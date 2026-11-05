@@ -6,7 +6,9 @@ use axum::response::Response;
 
 use super::repo::{Active, Crumb, Ctx, RepoNav, set_cache_headers};
 use super::{Layout, render};
+use crate::config::SnapshotFormat;
 use crate::git::refs::RefEntry;
+use crate::render::encode_path;
 use crate::render::time;
 
 pub struct RefRow {
@@ -16,6 +18,8 @@ pub struct RefRow {
     pub age: String,
     pub iso: String,
     pub is_default: bool,
+    /// Snapshot downloads (`tar.gz`, `zip`), on tags.
+    pub archives: Vec<(&'static str, String)>,
 }
 
 #[derive(Template)]
@@ -50,6 +54,7 @@ pub fn page(ctx: &Ctx) -> Response {
         age: time::relative(r.info.committer_time, now),
         iso: time::iso(r.info.committer_time),
         is_default: false,
+        archives: Vec::new(),
     };
     let mut branches: Vec<RefRow> = refs.branches.iter().map(row).collect();
     // The default branch leads the list.
@@ -75,9 +80,34 @@ pub fn page(ctx: &Ctx) -> Response {
         crumbs,
         here: Some("Refs".into()),
         branches,
-        tags: refs.tags.iter().map(row).collect(),
+        tags: refs
+            .tags
+            .iter()
+            .map(|r| {
+                let mut row = row(r);
+                row.archives = archives(ctx, &r.name);
+                row
+            })
+            .collect(),
     };
     let mut res = render(StatusCode::OK, &page);
     set_cache_headers(&mut res, &etag, false);
     res
+}
+
+/// Links to the enabled snapshot formats of `rev`.
+fn archives(ctx: &Ctx, rev: &str) -> Vec<(&'static str, String)> {
+    ctx.config
+        .repos
+        .snapshots
+        .iter()
+        .map(|format| {
+            let ext = match format {
+                SnapshotFormat::TarGz => "tar.gz",
+                SnapshotFormat::Zip => "zip",
+            };
+            let url = format!("{}/archive/{}.{ext}", ctx.repo_url(), encode_path(rev));
+            (ext, url)
+        })
+        .collect()
 }

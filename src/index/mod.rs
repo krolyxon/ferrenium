@@ -4,6 +4,8 @@
 //! Writers (full scans and single-repo refreshes) are serialized and swap in
 //! a new snapshot copy-on-write.
 
+pub mod languages;
+pub mod languages_table;
 pub mod meta;
 pub mod scan;
 pub mod watch;

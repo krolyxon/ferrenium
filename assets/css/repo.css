@@ -290,6 +290,66 @@ html:not(.js) .copy-status {
   margin-top: var(--space-xs);
 }
 
+/* The one break on the summary: a segmented language bar. */
+.lang-bar {
+  display: grid;
+  grid-template-columns: repeat(40, 1fr);
+  gap: 2px;
+  margin-top: var(--space-sm);
+}
+
+.lang-bar i {
+  aspect-ratio: 1;
+}
+
+.lang-bar i,
+.lang-legend i {
+  background: var(--text-display);
+}
+
+.lang-bar .o1,
+.lang-legend .o1 {
+  opacity: 0.7;
+}
+
+.lang-bar .o2,
+.lang-legend .o2 {
+  opacity: 0.45;
+}
+
+.lang-bar .o3,
+.lang-legend .o3 {
+  opacity: 0.25;
+}
+
+.lang-legend {
+  list-style: none;
+  margin-top: var(--space-sm);
+}
+
+.lang-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-block: 2px;
+}
+
+.lang-legend i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+.lang-legend .label {
+  flex: 1;
+}
+
+.lang-pct {
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  color: var(--text-secondary);
+}
+
 .latest-subject {
   margin-top: var(--space-sm);
   color: var(--text-primary);
@@ -538,6 +598,20 @@ html:not(.js) .copy-status {
 .ref-subject {
   color: var(--text-secondary);
   overflow-wrap: anywhere;
+}
+
+.ref-archives {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-xs);
+}
+
+.ref-archives a {
+  color: var(--text-secondary);
+}
+
+.ref-archives a:hover {
+  color: var(--text-display);
 }
 
 .chip {
@@ -865,6 +939,90 @@ html:not(.js) .copy-status {
 
 .code.diff tr.hunk:not(:first-child) td {
   border-top: 1px solid var(--border);
+}
+
+/* ---- Find ----------------------------------------------------------------- */
+
+.find-count {
+  margin-top: var(--space-lg);
+}
+
+.find-list {
+  margin-top: var(--space-sm);
+}
+
+.find-dir {
+  color: var(--text-disabled);
+}
+
+/* ---- Blame ---------------------------------------------------------------- */
+
+.code.blame .blame-meta {
+  width: 1%;
+  max-width: 320px;
+  padding: 0 var(--space-md) 0 var(--space-sm);
+  border-left: 2px solid transparent;
+  font-family: var(--font-mono);
+  font-size: var(--caption);
+  line-height: 20px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  vertical-align: top;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.code.blame .blame-meta .sha {
+  color: var(--interactive);
+}
+
+.code.blame .blame-meta time {
+  color: var(--text-disabled);
+}
+
+.code.blame tr.hunk-start td {
+  border-top: 1px solid var(--border);
+}
+
+.code.blame tr:first-child td {
+  border-top: 0;
+}
+
+/* The one break on the blame page: heat by opacity, newest to oldest. */
+.code.blame .age-8 {
+  border-left-color: var(--text-display);
+}
+
+.code.blame .age-7 {
+  border-left-color: color-mix(in srgb, var(--text-display) 90%, transparent);
+}
+
+.code.blame .age-6 {
+  border-left-color: color-mix(in srgb, var(--text-display) 80%, transparent);
+}
+
+.code.blame .age-5 {
+  border-left-color: color-mix(in srgb, var(--text-display) 70%, transparent);
+}
+
+.code.blame .age-4 {
+  border-left-color: color-mix(in srgb, var(--text-display) 60%, transparent);
+}
+
+.code.blame .age-3 {
+  border-left-color: color-mix(in srgb, var(--text-display) 50%, transparent);
+}
+
+.code.blame .age-2 {
+  border-left-color: color-mix(in srgb, var(--text-display) 40%, transparent);
+}
+
+.code.blame .age-1 {
+  border-left-color: color-mix(in srgb, var(--text-display) 30%, transparent);
+}
+
+.code.blame .age-0 {
+  border-left-color: color-mix(in srgb, var(--text-display) 20%, transparent);
 }
 
 /* ---- Markdown ------------------------------------------------------------ */

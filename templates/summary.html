@@ -31,6 +31,19 @@
       </div>
       {%- endfor %}
     </dl>
+    {%- if let Some(bar) = languages %}
+    <section class="rail-block">
+      <h2 class="label">Languages</h2>
+      <div class="lang-bar" role="img" aria-label="{% for l in bar.legend %}{{ l.name }} {{ l.percent }}{% if !loop.last %}, {% endif %}{% endfor %}">
+        {%- for b in bar.blocks %}<i class="{{ b }}"></i>{% endfor -%}
+      </div>
+      <ul class="lang-legend">
+        {%- for l in bar.legend %}
+        <li><i class="{{ l.class }}" aria-hidden="true"></i><span class="label">{{ l.name }}</span><span class="lang-pct">{{ l.percent }}</span></li>
+        {%- endfor %}
+      </ul>
+    </section>
+    {%- endif %}
     {%- if !clone_urls.is_empty() %}
     <section class="rail-block" data-clone>
       <div class="rail-head">

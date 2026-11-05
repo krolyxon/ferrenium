@@ -10,6 +10,7 @@ use tokio::sync::Semaphore;
 use crate::cache::Cache;
 use crate::config::{Config, ConfigError, Listen};
 use crate::index::Indexer;
+use crate::index::languages::Warmer;
 use crate::server::assets::Assets;
 
 pub struct AppState {
@@ -21,7 +22,12 @@ pub struct AppState {
     pub cache: Cache,
     /// Bounds concurrent git work (`limits.git_parallel`).
     pub git_permits: Semaphore,
+    /// Bounds expensive requests: blame, archives, clones, log searches
+    /// (`limits.heavy_parallel`). Held for a whole response stream.
+    pub heavy_permits: Arc<Semaphore>,
     pub index: Indexer,
+    /// Background language statistics.
+    pub warmer: Warmer,
     /// Wakes the index watcher for an immediate full rescan.
     pub rescan: tokio::sync::Notify,
     /// Command-line overrides re-applied after every reload.
@@ -49,10 +55,12 @@ impl AppState {
         Arc::new(AppState {
             cache: Cache::new(config.cache.size_mb),
             git_permits: Semaphore::new(config.git_parallel()),
+            heavy_permits: Arc::new(Semaphore::new(config.limits.heavy_parallel)),
             config_generation: AtomicU64::new(0),
             config: ArcSwap::from_pointee(config),
             assets: Assets::new(),
             index: Indexer::new(),
+            warmer: Warmer::default(),
             rescan: tokio::sync::Notify::new(),
             overrides,
         })
@@ -85,10 +93,16 @@ impl AppState {
             new.server.compression = old.server.compression;
             new.limits.request_timeout_secs = old.limits.request_timeout_secs;
         }
-        if new.cache.size_mb != old.cache.size_mb || new.git_parallel() != old.git_parallel() {
-            tracing::warn!("cache.size_mb / limits.git_parallel changed; restart required");
+        if new.cache.size_mb != old.cache.size_mb
+            || new.git_parallel() != old.git_parallel()
+            || new.limits.heavy_parallel != old.limits.heavy_parallel
+        {
+            tracing::warn!(
+                "cache.size_mb / limits.git_parallel / limits.heavy_parallel changed; restart required"
+            );
             new.cache.size_mb = old.cache.size_mb;
             new.limits.git_parallel = old.limits.git_parallel;
+            new.limits.heavy_parallel = old.limits.heavy_parallel;
         }
         let new = Arc::new(new);
         self.config.store(new.clone());

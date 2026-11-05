@@ -1,8 +1,12 @@
 //! Request handlers. Each page is an askama template that embeds a [`Layout`].
 
+pub mod archive;
+pub mod blame;
 pub mod blob;
 pub mod commit;
 pub mod error;
+pub mod feed;
+pub mod find;
 pub mod index;
 pub mod log;
 pub mod raw;
@@ -37,6 +41,8 @@ pub struct Layout {
     pub header: Option<Arc<str>>,
     pub footer: Option<Arc<str>>,
     pub version: &'static str,
+    /// Atom feed advertised in `<head>`.
+    pub feed: Option<String>,
 }
 
 impl Layout {
@@ -57,6 +63,7 @@ impl Layout {
             header: config.custom.header.clone(),
             footer: config.custom.footer.clone(),
             version: env!("CARGO_PKG_VERSION"),
+            feed: None,
         }
     }
 }

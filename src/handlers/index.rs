@@ -31,6 +31,8 @@ pub struct Row {
     pub age: Option<String>,
     pub iso: Option<String>,
     pub fresh: bool,
+    /// Main language, once the background statistics have it.
+    pub language: Option<&'static str>,
     /// Lowercased text the client-side filter matches against.
     pub search: String,
 }
@@ -104,6 +106,7 @@ pub async fn index(
             .meta
             .last_activity
             .is_some_and(|t| now - t < FRESH_SECS),
+        language: state.warmer.primary(&repo.name),
         search: search_text(repo),
     };
 

@@ -7,9 +7,10 @@
 use std::sync::Arc;
 
 use axum::extract::{Query, Request, State};
-use axum::http::{StatusCode, header};
+use axum::http::{Method, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 
+use super::clone;
 use crate::handlers::error;
 use crate::handlers::repo::{PageQuery, RepoRequest, handle};
 use crate::index::{Repo, RepoIndex};
@@ -21,9 +22,10 @@ pub enum Match<'a> {
         repo: Arc<Repo>,
         rest: &'a [Vec<u8>],
     },
-    /// `/{repo}.git` → `/{repo}`.
+    /// `/{repo}.git` → `/{repo}`; `/{repo}.git/…` is only for cloning.
     DotGit {
-        name: String,
+        repo: Arc<Repo>,
+        rest: &'a [Vec<u8>],
     },
     None,
 }
@@ -63,19 +65,24 @@ pub fn find_repo<'a>(index: &RepoIndex, segments: &'a [Vec<u8>]) -> Match<'a> {
             };
         }
         if let Some(stripped) = name.strip_suffix(".git")
-            && index.repos.contains_key(stripped)
+            && let Some(repo) = index.repos.get(stripped)
         {
-            // `/{repo}.git/…` is the HTTPS clone endpoint (not served yet).
-            return if n == segments.len() {
-                Match::DotGit {
-                    name: stripped.to_string(),
-                }
-            } else {
-                Match::None
+            return Match::DotGit {
+                repo: repo.clone(),
+                rest: &segments[n..],
             };
         }
     }
     Match::None
+}
+
+/// Expensive pages share `limits.heavy_parallel` permits.
+fn is_heavy(rest: &[Vec<u8>], query: &PageQuery) -> bool {
+    match rest.first().map(Vec::as_slice) {
+        Some(b"blame" | b"archive") => true,
+        Some(b"log") => query.q.as_deref().is_some_and(|q| !q.trim().is_empty()),
+        _ => false,
+    }
 }
 
 pub async fn dispatch(State(state): State<Arc<AppState>>, req: Request) -> Response {
@@ -86,17 +93,42 @@ pub async fn dispatch(State(state): State<Arc<AppState>>, req: Request) -> Respo
     };
     let (repo, rest) = match find_repo(&index, &segments) {
         Match::Repo { repo, rest } => (repo, rest.to_vec()),
-        Match::DotGit { name } => {
-            let url = format!("{}{}", config.server.base_path, encode_path(&name));
+        Match::DotGit { repo, rest: [] } => {
+            let url = format!("{}{}", config.server.base_path, encode_path(&repo.name));
             return Redirect::permanent(&url).into_response();
         }
-        Match::None => return error::page(&state, StatusCode::NOT_FOUND, "PAGE NOT FOUND"),
+        Match::DotGit { repo, rest } if clone::is_clone_path(rest) => {
+            return clone::serve(state.clone(), repo, rest.to_vec(), req).await;
+        }
+        Match::DotGit { .. } | Match::None => {
+            return error::page(&state, StatusCode::NOT_FOUND, "PAGE NOT FOUND");
+        }
     };
+    if clone::is_clone_path(&rest) {
+        return clone::serve(state.clone(), repo, rest, req).await;
+    }
+    if !matches!(*req.method(), Method::GET | Method::HEAD) {
+        return StatusCode::METHOD_NOT_ALLOWED.into_response();
+    }
     let query = Query::<PageQuery>::try_from_uri(req.uri())
         .map(|q| q.0)
         .unwrap_or_default();
+    let heavy = if is_heavy(&rest, &query) {
+        match state.heavy_permits.clone().acquire_owned().await {
+            Ok(permit) => Some(permit),
+            Err(_) => return error::page(&state, StatusCode::SERVICE_UNAVAILABLE, "SHUTTING DOWN"),
+        }
+    } else {
+        None
+    };
     let request = RepoRequest {
         repo,
+        heavy,
+        host: req
+            .headers()
+            .get(header::HOST)
+            .and_then(|h| h.to_str().ok())
+            .map(str::to_string),
         segments: rest,
         query,
         if_none_match: req.headers().get(header::IF_NONE_MATCH).cloned(),

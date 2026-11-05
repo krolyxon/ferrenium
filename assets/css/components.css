@@ -380,6 +380,16 @@ html:not(.js) .theme-switch {
   white-space: nowrap;
 }
 
+.repo-lang {
+  color: var(--text-secondary);
+}
+
+.repo-lang::after {
+  content: "\00B7";
+  margin-left: var(--space-sm);
+  color: var(--text-disabled);
+}
+
 /* Data-status dot: pushed in the last 24 hours. */
 .dot {
   width: 6px;

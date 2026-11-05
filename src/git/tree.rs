@@ -135,6 +135,69 @@ pub fn list(repo: &gix::Repository, tree: ObjectId) -> anyhow::Result<Vec<TreeEn
     Ok(entries)
 }
 
+/// Every file path under `tree` (blobs, symlinks and submodules), in
+/// tree order, up to `limit` paths. The flag reports truncation.
+pub fn all_paths(
+    repo: &gix::Repository,
+    tree: ObjectId,
+    limit: usize,
+) -> anyhow::Result<(Vec<String>, bool)> {
+    let mut out = Vec::new();
+    let mut stack = vec![(tree, String::new())];
+    while let Some((id, prefix)) = stack.pop() {
+        let tree = repo.find_tree(id).context("tree not found")?;
+        let mut subtrees = Vec::new();
+        for entry in tree.iter() {
+            let entry = entry?;
+            let path = format!("{prefix}{}", entry.filename().to_str_lossy());
+            if entry.mode().is_tree() {
+                subtrees.push((entry.oid().to_owned(), format!("{path}/")));
+            } else {
+                if out.len() == limit {
+                    return Ok((out, true));
+                }
+                out.push(path);
+            }
+        }
+        // Depth first, in name order.
+        stack.extend(subtrees.into_iter().rev());
+    }
+    Ok((out, false))
+}
+
+/// Walk the files under `tree` depth-first. `enter` gets each directory
+/// path (with a trailing `/`) and decides whether to descend; `file` gets
+/// every blob and symlink with its size, read from the object header.
+pub fn walk(
+    repo: &gix::Repository,
+    tree: ObjectId,
+    enter: &mut dyn FnMut(&str) -> bool,
+    file: &mut dyn FnMut(&str, EntryKind, u64),
+) -> anyhow::Result<()> {
+    let mut stack = vec![(tree, String::new())];
+    while let Some((id, prefix)) = stack.pop() {
+        let tree = repo.find_tree(id).context("tree not found")?;
+        for entry in tree.iter() {
+            let entry = entry?;
+            let path = format!("{prefix}{}", entry.filename().to_str_lossy());
+            match EntryKind::from_gix(entry.mode().kind()) {
+                EntryKind::Tree => {
+                    let dir = format!("{path}/");
+                    if enter(&dir) {
+                        stack.push((entry.oid().to_owned(), dir));
+                    }
+                }
+                EntryKind::Submodule => {}
+                kind => {
+                    let size = repo.find_header(entry.oid().to_owned())?.size();
+                    file(&path, kind, size);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Full contents of a blob.
 pub fn blob(repo: &gix::Repository, oid: ObjectId) -> anyhow::Result<Vec<u8>> {
     let mut blob = repo.find_blob(oid).context("blob not found")?;

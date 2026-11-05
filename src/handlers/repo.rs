@@ -3,6 +3,7 @@
 //!
 //! Everything here runs on the blocking pool (see [`AppState::blocking`]).
 
+use std::cell::Cell;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -10,8 +11,9 @@ use std::sync::atomic::Ordering;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
+use tokio::sync::OwnedSemaphorePermit;
 
-use super::{blob, commit, error, log, raw, refs, summary, tree};
+use super::{archive, blame, blob, commit, error, feed, find, log, raw, refs, summary, tree};
 use crate::cache::Key;
 use crate::config::Config;
 use crate::git::refs::{RefKind, RefList, Rev};
@@ -37,10 +39,16 @@ pub struct PageQuery {
     pub context: Option<String>,
     /// Commit: `ignore` compares lines ignoring whitespace.
     pub ws: Option<String>,
+    /// Atom: the branch (default branch when absent).
+    pub h: Option<String>,
 }
 
 pub struct RepoRequest {
     pub repo: Arc<Repo>,
+    /// Held for heavy requests (see `dispatch::is_heavy`).
+    pub heavy: Option<OwnedSemaphorePermit>,
+    /// `Host` header, for absolute URLs when `server.base_url` is unset.
+    pub host: Option<String>,
     /// Path segments after the repository name.
     pub segments: Vec<Vec<u8>>,
     pub query: PageQuery,
@@ -55,11 +63,16 @@ pub struct Ctx<'a> {
     pub repo: &'a Repo,
     pub git: Handle,
     pub query: &'a PageQuery,
+    pub host: Option<&'a str>,
     if_none_match: Option<&'a HeaderValue>,
+    heavy: Cell<Option<OwnedSemaphorePermit>>,
 }
 
-pub fn handle(state: &AppState, req: RepoRequest) -> Response {
+pub fn handle(state: &AppState, mut req: RepoRequest) -> Response {
+    let heavy = Cell::new(req.heavy.take());
     let ctx = Ctx {
+        heavy,
+        host: req.host.as_deref(),
         state,
         config: &req.config,
         repo: &req.repo,
@@ -73,15 +86,24 @@ pub fn handle(state: &AppState, req: RepoRequest) -> Response {
     match action.as_slice() {
         b"tree" => tree::page(&ctx, rest),
         b"blob" => blob::page(&ctx, rest),
+        b"blame" => blame::page(&ctx, rest),
         b"raw" => raw::serve(&ctx, rest),
         b"log" => log::page(&ctx, rest),
+        b"archive" => archive::serve(&ctx, rest),
+        b"find" => find::page(&ctx, rest),
         b"commit" => commit::page(&ctx, rest),
         b"refs" if rest.is_empty() => refs::page(&ctx),
+        b"atom" if rest.is_empty() => feed::serve(&ctx),
         _ => ctx.not_found("PAGE NOT FOUND"),
     }
 }
 
 impl Ctx<'_> {
+    /// The heavy-request permit, for work that outlives the handler.
+    pub fn take_heavy_permit(&self) -> Option<OwnedSemaphorePermit> {
+        self.heavy.take()
+    }
+
     /// `{base}{repo}` without a trailing slash.
     pub fn repo_url(&self) -> String {
         format!(
@@ -99,6 +121,21 @@ impl Ctx<'_> {
             url.push_str(&encode_bytes(path));
         }
         url
+    }
+
+    /// `scheme://host` for absolute URLs: `server.base_url`, else the
+    /// request's `Host` (over http).
+    pub fn origin(&self) -> String {
+        match (&self.config.server.base_url, self.host) {
+            (Some(url), _) => url.clone(),
+            (None, Some(host)) => format!("http://{host}"),
+            (None, None) => "http://localhost".into(),
+        }
+    }
+
+    /// The repository's Atom feed (relative URL).
+    pub fn feed_url(&self) -> String {
+        format!("{}/atom", self.repo_url())
     }
 
     pub fn commit_url(&self, id: &ObjectId) -> String {
@@ -203,14 +240,16 @@ impl Ctx<'_> {
         current: Option<&Rev>,
         picker: impl Fn(&str) -> String,
     ) -> RepoNav {
-        let (tree_url, log_url) = match current {
+        let (tree_url, log_url, find_url) = match current {
             Some(rev) => (
                 self.url("tree", &rev.name, b""),
                 self.url("log", &rev.name, b""),
+                self.url("find", &rev.name, b""),
             ),
             None => (
                 format!("{}/tree", self.repo_url()),
                 format!("{}/log", self.repo_url()),
+                format!("{}/find", self.repo_url()),
             ),
         };
         let picker = current.and_then(|rev| {
@@ -245,6 +284,7 @@ impl Ctx<'_> {
             url: self.repo_url(),
             tree_url,
             log_url,
+            find_url,
             refs_url: format!("{}/refs", self.repo_url()),
             active: active.as_str(),
             picker,
@@ -281,6 +321,7 @@ pub enum Active {
     Tree,
     Log,
     Refs,
+    Find,
 }
 
 impl Active {
@@ -289,6 +330,7 @@ impl Active {
             Active::Summary => "summary",
             Active::Tree => "tree",
             Active::Log => "log",
+            Active::Find => "find",
             Active::Refs => "refs",
         }
     }
@@ -299,6 +341,7 @@ pub struct RepoNav {
     pub url: String,
     pub tree_url: String,
     pub log_url: String,
+    pub find_url: String,
     pub refs_url: String,
     /// `summary`, `tree`, `log` or `refs`.
     pub active: &'static str,

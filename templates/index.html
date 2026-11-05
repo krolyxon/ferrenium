@@ -44,6 +44,7 @@
       </a>
       <span class="repo-meta label">
         {%- if repo.fresh %}<span class="dot" title="Updated in the last 24 hours"></span>{% endif -%}
+        {%- if let Some(language) = repo.language %}<span class="repo-lang">{{ language }}</span>{% endif -%}
         {%- if let Some(age) = repo.age %}<time datetime="{{ repo.iso.as_deref().unwrap_or_default() }}" title="{{ repo.iso.as_deref().unwrap_or_default() }}">{{ age }}</time>{% else %}Empty{% endif -%}
       </span>
     </li>

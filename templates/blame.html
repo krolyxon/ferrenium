@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "repo_nav.html" %}
+{% include "crumbs.html" %}
+<div class="blob-bar">
+  <p class="label blob-facts">{% for fact in facts %}{% if !loop.first %} · {% endif %}{{ fact }}{% endfor %}</p>
+  <div class="blob-actions">
+    <a class="btn-ghost" href="{{ blob_url }}">File</a>
+    <a class="btn-ghost" href="{{ log_url }}">History</a>
+  </div>
+</div>
+{%- match body %}
+{%- when Body::Lines with (rows) %}
+<div class="code-wrap">
+<table class="code blame" data-lines>
+<tbody>
+{%- for row in rows %}
+{%- if let Some(head) = row.head %}
+<tr id="L{{ row.n }}" class="hunk-start"><td class="blame-meta {{ head.age_class }}" rowspan="{{ head.rows }}"><a class="sha" href="{{ head.url }}" title="{{ head.subject }}">{{ head.id }}</a> <span class="blame-who">{{ head.author }}</span> <time datetime="{{ head.iso }}" title="{{ head.iso }}">{{ head.age }}</time></td><td class="ln"><a href="#L{{ row.n }}">{{ row.n }}</a></td><td class="lc">{{ row.html|safe }}</td></tr>
+{%- else %}
+<tr id="L{{ row.n }}"><td class="ln"><a href="#L{{ row.n }}">{{ row.n }}</a></td><td class="lc">{{ row.html|safe }}</td></tr>
+{%- endif %}
+{%- endfor %}
+</tbody>
+</table>
+</div>
+{%- when Body::Binary %}
+<p class="status blob-note">[Binary file]</p>
+{%- when Body::TooLarge %}
+<p class="status blob-note">[Too large to blame]</p>
+{%- when Body::Empty %}
+<p class="status blob-note">[Empty file]</p>
+{%- endmatch %}
+{% endblock %}

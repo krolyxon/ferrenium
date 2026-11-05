@@ -147,7 +147,10 @@ pub fn page(ctx: &Ctx, segments: &[Vec<u8>]) -> Response {
     };
     let older_url = found.older.map(|id| link(Some(id)));
     let page = LogPage {
-        layout: Layout::new(ctx.state, ctx.config, Some(&title)),
+        layout: Layout {
+            feed: Some(ctx.feed_url()),
+            ..Layout::new(ctx.state, ctx.config, Some(&title))
+        },
         nav: ctx.nav(Active::Log, Some(&rev), |name| ctx.url("log", name, &path)),
         crumbs,
         here: last,

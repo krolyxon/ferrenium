@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "repo_nav.html" %}
+{% include "crumbs.html" %}
+<form class="log-tools" method="get" action="{{ action }}" role="search">
+  <label class="field">
+    <span class="label">Path</span>
+    <input type="search" name="q" value="{{ q }}" autocomplete="off" spellcheck="false" placeholder="File name or path" autofocus>
+  </label>
+</form>
+{%- if !q.is_empty() %}
+<p class="label dim find-count">{{ matched }} of {{ total }} files{% if matched > hits.len() %} · showing {{ hits.len() }}{% endif %}</p>
+{%- if hits.is_empty() %}
+<p class="status log-note">[No matches]</p>
+{%- else %}
+<ul class="tree find-list">
+  {%- for hit in hits %}
+  <li class="tree-row"><a class="tree-name mono" href="{{ hit.url }}"><span><span class="find-dir">{{ hit.dir }}</span>{{ hit.name }}</span></a></li>
+  {%- endfor %}
+</ul>
+{%- endif %}
+{%- else %}
+<p class="label dim find-count">{{ total }} files</p>
+{%- endif %}
+{%- if truncated %}
+<p class="status log-note">[Large tree: only the first {{ total }} paths are searched]</p>
+{%- endif %}
+{% endblock %}
