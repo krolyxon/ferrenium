@@ -17,6 +17,9 @@ title = "ferrenium"
 # custom_css = "custom.css"
 # header = "header.html"
 # footer = "footer.html"
+# favicon = "favicon.png"              # .ico, .png, .svg, .webp, .gif or .jpg, up to 1 MiB
+# logo = "logo.svg"                    # shown before the title in the top bar
+# assets_dir = "assets"                # served at /-/site/; in custom_css: url("site/bg.jpg")
 
 [repos]
 scan_path = "/home/git"
@@ -42,6 +45,7 @@ https_clone = true
 theme = "auto"                         # auto | dark | light
 index_sort = "activity"                # repository index order: activity | name
 code_font = "Space Mono"
+# accent = "#d71921"                   # hex accent color; default: Nothing red
 max_blob_kb = 1024
 max_highlight_kb = 256
 log_page = 50                          # commits per log page

@@ -8,9 +8,9 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use axum::body::Bytes;
+use axum::body::{Body, Bytes};
 use axum::extract::{Path, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use rust_embed::RustEmbed;
 
@@ -127,8 +127,8 @@ pub async fn serve(
         .into_response()
 }
 
-/// `GET /-/site.css?v=…` — per-site overrides: the configured code font and
-/// the contents of `site.custom_css`. Only linked when there is something to
+/// `GET /-/site.css?v=…` — per-site overrides: the configured code font,
+/// accent color and the contents of `site.custom_css`. Only linked when there is something to
 /// serve; versioned by [`site_css_version`].
 pub async fn site_css(State(state): State<Arc<AppState>>) -> Response {
     let config = state.config.load();
@@ -157,10 +157,127 @@ pub fn site_css_body(config: &crate::config::Config) -> Option<String> {
             config.ui.code_font
         ));
     }
+    if let Some(accent) = &config.ui.accent {
+        // Validated as a hex color in `Config::finish`.
+        if let Some([r, g, b]) = crate::config::parse_hex_color(accent) {
+            css.push_str(&format!(
+                ":root {{ --accent: {accent}; --accent-subtle: rgba({r}, {g}, {b}, 0.15); }}\n"
+            ));
+        }
+    }
     if let Some(custom) = &config.custom.css {
         css.push_str(custom);
     }
     (!css.is_empty()).then_some(css)
+}
+
+/// `GET /-/favicon?v=…` — `site.favicon`.
+pub async fn favicon(State(state): State<Arc<AppState>>) -> Response {
+    site_image(state.config.load().custom.favicon.as_ref())
+}
+
+/// `GET /-/logo?v=…` — `site.logo`.
+pub async fn logo(State(state): State<Arc<AppState>>) -> Response {
+    site_image(state.config.load().custom.logo.as_ref())
+}
+
+fn site_image(image: Option<&crate::config::SiteImage>) -> Response {
+    let Some(image) = image else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    (
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static(image.content_type),
+            ),
+            (header::CACHE_CONTROL, HeaderValue::from_static(NO_CACHE)),
+        ],
+        image.data.clone(),
+    )
+        .into_response()
+}
+
+/// File types served from `site.assets_dir`: what a stylesheet can load.
+const SITE_ASSET_TYPES: &[&str] = &[
+    "css", "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff2", "woff", "ttf", "otf",
+];
+
+/// `GET /-/site/{*path}` — a file from `site.assets_dir`, streamed from disk.
+/// Hidden files, other types and paths (or symlinks) leading outside the
+/// directory are 404.
+pub async fn site_asset(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let config = state.config.load();
+    let Some(dir) = config.site.assets_dir.clone() else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Some(rel) = site_asset_path(&path).map(str::to_owned) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let opened = tokio::task::spawn_blocking(move || {
+        let full = dir.join(rel).canonicalize().ok()?;
+        if !full.starts_with(&dir) {
+            return None;
+        }
+        let file = std::fs::File::open(&full).ok()?;
+        let meta = file.metadata().ok()?;
+        meta.is_file().then_some((file, meta))
+    })
+    .await
+    .ok()
+    .flatten();
+    let Some((file, meta)) = opened else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    let mut hasher = std::hash::DefaultHasher::new();
+    meta.len().hash(&mut hasher);
+    meta.modified().ok().hash(&mut hasher);
+    let etag = format!("W/\"{:016x}\"", hasher.finish());
+    let etag = HeaderValue::from_str(&etag).expect("hex ETag is a valid header");
+    let cache = [
+        (header::ETAG, etag.clone()),
+        (header::CACHE_CONTROL, HeaderValue::from_static(NO_CACHE)),
+    ];
+    let bare = |t: &[u8]| {
+        t.trim_ascii()
+            .strip_prefix(b"W/")
+            .unwrap_or(t.trim_ascii())
+            .to_vec()
+    };
+    if headers.get(header::IF_NONE_MATCH).is_some_and(|v| {
+        v.as_bytes()
+            .split(|&b| b == b',')
+            .any(|t| bare(t) == bare(etag.as_bytes()))
+    }) {
+        return (StatusCode::NOT_MODIFIED, cache).into_response();
+    }
+    let body = Body::from_stream(tokio_util::io::ReaderStream::new(
+        tokio::fs::File::from_std(file),
+    ));
+    (
+        cache,
+        [
+            (header::CONTENT_TYPE, content_type(&path)),
+            (header::CONTENT_LENGTH, HeaderValue::from(meta.len())),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+/// Validate a request path for [`site_asset`]: plain segments only, no
+/// hidden files, and an allowed file type.
+fn site_asset_path(path: &str) -> Option<&str> {
+    let clean = path
+        .split('/')
+        .all(|seg| !seg.is_empty() && !seg.starts_with('.') && !seg.contains(['\\', '\0', ':']));
+    let ext = path.rsplit_once('.')?.1.to_ascii_lowercase();
+    (clean && SITE_ASSET_TYPES.contains(&ext.as_str())).then_some(path)
 }
 
 /// Short content hash for the `?v=` query of the site stylesheet link.
@@ -185,6 +302,29 @@ mod tests {
         let text = std::str::from_utf8(&bundle).unwrap();
         assert!(text.contains("@font-face"));
         assert!(text.contains("--text-display"));
+    }
+
+    #[test]
+    fn site_asset_paths() {
+        for ok in ["bg.jpg", "img/Bg.PNG", "fonts/x.woff2", "theme.css"] {
+            assert_eq!(site_asset_path(ok), Some(ok), "{ok}");
+        }
+        for bad in [
+            "",
+            "../x.png",
+            "a/../x.png",
+            "./x.png",
+            ".x.png",
+            "a//x.png",
+            "/x.png",
+            "x.html",
+            "x.svgz",
+            "x",
+            "a\\x.png",
+            "c:x.png",
+        ] {
+            assert_eq!(site_asset_path(bad), None, "{bad}");
+        }
     }
 
     #[test]

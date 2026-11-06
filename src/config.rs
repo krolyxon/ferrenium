@@ -45,8 +45,9 @@ pub struct Config {
     /// File the config was loaded from (`None` = built-in defaults).
     #[serde(skip)]
     pub source: Option<PathBuf>,
-    /// Contents of `custom_css` / `header` / `footer`, read at load time so
-    /// that a reload picks up edits and requests never touch the filesystem.
+    /// Contents of `custom_css` / `header` / `footer` / `favicon` / `logo`,
+    /// read at load time so that a reload picks up edits and requests never
+    /// touch the filesystem.
     #[serde(skip)]
     pub custom: Customization,
 }
@@ -56,7 +57,21 @@ pub struct Customization {
     pub css: Option<Arc<str>>,
     pub header: Option<Arc<str>>,
     pub footer: Option<Arc<str>>,
+    pub favicon: Option<SiteImage>,
+    pub logo: Option<SiteImage>,
 }
+
+/// An image from `site.favicon` / `site.logo`, served from memory.
+#[derive(Debug, Clone)]
+pub struct SiteImage {
+    pub data: bytes::Bytes,
+    pub content_type: &'static str,
+    /// Short content hash for the `?v=` cache-busting query.
+    pub version: String,
+}
+
+/// Largest accepted `site.favicon` / `site.logo` file.
+const MAX_IMAGE_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -89,6 +104,10 @@ pub struct SiteConfig {
     pub custom_css: Option<PathBuf>,
     pub header: Option<PathBuf>,
     pub footer: Option<PathBuf>,
+    pub favicon: Option<PathBuf>,
+    pub logo: Option<PathBuf>,
+    /// Directory served at `/-/site/` for files used by `custom_css`.
+    pub assets_dir: Option<PathBuf>,
 }
 
 impl Default for SiteConfig {
@@ -100,6 +119,9 @@ impl Default for SiteConfig {
             custom_css: None,
             header: None,
             footer: None,
+            favicon: None,
+            logo: None,
+            assets_dir: None,
         }
     }
 }
@@ -157,6 +179,8 @@ pub struct UiConfig {
     /// Default order of the repository index (`?sort=` overrides it).
     pub index_sort: IndexSort,
     pub code_font: String,
+    /// `#rgb` or `#rrggbb`; replaces the default red accent.
+    pub accent: Option<String>,
     pub max_blob_kb: u64,
     pub max_highlight_kb: u64,
     /// Commits per log page.
@@ -169,6 +193,7 @@ impl Default for UiConfig {
             theme: Theme::Auto,
             index_sort: IndexSort::Activity,
             code_font: DEFAULT_CODE_FONT.into(),
+            accent: None,
             max_blob_kb: 1024,
             max_highlight_kb: 256,
             log_page: 50,
@@ -441,7 +466,29 @@ impl Config {
             ),
             header: read_custom(&base_dir, "site.header", &mut self.site.header, &mut errors),
             footer: read_custom(&base_dir, "site.footer", &mut self.site.footer, &mut errors),
+            favicon: read_image(
+                &base_dir,
+                "site.favicon",
+                &mut self.site.favicon,
+                &mut errors,
+            ),
+            logo: read_image(&base_dir, "site.logo", &mut self.site.logo, &mut errors),
         };
+
+        if let Some(dir) = &mut self.site.assets_dir {
+            // Canonical, so requests can check that symlinks stay inside it.
+            match base_dir.join(&*dir).canonicalize() {
+                Ok(canonical) if canonical.is_dir() => *dir = canonical,
+                Ok(canonical) => errors.push(format!(
+                    "site.assets_dir: {} is not a directory",
+                    canonical.display()
+                )),
+                Err(e) => errors.push(format!(
+                    "site.assets_dir: cannot open {}: {e}",
+                    base_dir.join(&*dir).display()
+                )),
+            }
+        }
 
         // repos
         if self.repos.scan_path.is_relative() {
@@ -482,6 +529,14 @@ impl Config {
                 "ui.code_font contains characters not allowed in a font name: {:?}",
                 self.ui.code_font
             ));
+        }
+        if let Some(accent) = &mut self.ui.accent {
+            *accent = accent.trim().to_ascii_lowercase();
+            if parse_hex_color(accent).is_none() {
+                errors.push(format!(
+                    "ui.accent must be a hex color like \"#d71921\": {accent:?}"
+                ));
+            }
         }
         if self.ui.max_blob_kb == 0 {
             errors.push("ui.max_blob_kb must be greater than 0".into());
@@ -556,6 +611,81 @@ fn read_custom(
             errors.push(format!("{key}: cannot read {}: {e}", p.display()));
             None
         }
+    }
+}
+
+/// Resolve an image path against `base_dir`, check its type and size, and
+/// read it.
+fn read_image(
+    base_dir: &Path,
+    key: &str,
+    path: &mut Option<PathBuf>,
+    errors: &mut Vec<String>,
+) -> Option<SiteImage> {
+    let p = path.as_mut()?;
+    if p.is_relative() {
+        *p = base_dir.join(&*p);
+    }
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase);
+    let content_type = match ext.as_deref() {
+        Some("ico") => "image/x-icon",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("webp") => "image/webp",
+        Some("gif") => "image/gif",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        _ => {
+            errors.push(format!(
+                "{key}: unsupported image type (use .ico, .png, .svg, .webp, .gif or .jpg): {}",
+                p.display()
+            ));
+            return None;
+        }
+    };
+    let data = match std::fs::metadata(&*p) {
+        Ok(m) if m.len() > MAX_IMAGE_BYTES => {
+            errors.push(format!(
+                "{key}: {} is larger than {} KiB",
+                p.display(),
+                MAX_IMAGE_BYTES / 1024
+            ));
+            return None;
+        }
+        Ok(_) => std::fs::read(&*p),
+        Err(e) => Err(e),
+    };
+    match data {
+        Ok(data) => {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::hash::DefaultHasher::new();
+            data.hash(&mut hasher);
+            Some(SiteImage {
+                data: data.into(),
+                content_type,
+                version: format!("{:08x}", hasher.finish() as u32),
+            })
+        }
+        Err(e) => {
+            errors.push(format!("{key}: cannot read {}: {e}", p.display()));
+            None
+        }
+    }
+}
+
+/// `#rgb` / `#rrggbb` to its components.
+pub fn parse_hex_color(s: &str) -> Option<[u8; 3]> {
+    let hex = s.strip_prefix('#')?;
+    if !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let digit = |i: usize, len: usize| u8::from_str_radix(&hex[i * len..(i + 1) * len], 16).ok();
+    match hex.len() {
+        3 => Some([digit(0, 1)? * 17, digit(1, 1)? * 17, digit(2, 1)? * 17]),
+        6 => Some([digit(0, 2)?, digit(1, 2)?, digit(2, 2)?]),
+        _ => None,
     }
 }
 
@@ -698,5 +828,71 @@ mod tests {
         std::fs::write(&path, "[site]\nfooter = \"missing.html\"\n").unwrap();
         let err = Config::load(Some(&path)).unwrap_err().to_string();
         assert!(err.contains("site.footer"), "{err}");
+    }
+
+    #[test]
+    fn images_are_read_and_checked() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("icon.PNG"), b"\x89PNG").unwrap();
+        std::fs::write(dir.path().join("logo.bmp"), b"BM").unwrap();
+        std::fs::write(
+            dir.path().join("big.svg"),
+            vec![b' '; MAX_IMAGE_BYTES as usize + 1],
+        )
+        .unwrap();
+        let path = dir.path().join("ferrenium.toml");
+        std::fs::write(&path, "[site]\nfavicon = \"icon.PNG\"\n").unwrap();
+        let c = Config::load(Some(&path)).unwrap();
+        let icon = c.custom.favicon.unwrap();
+        assert_eq!(icon.content_type, "image/png");
+        assert_eq!(&icon.data[..], b"\x89PNG");
+        assert_eq!(icon.version.len(), 8);
+
+        std::fs::write(
+            &path,
+            "[site]\nfavicon = \"big.svg\"\nlogo = \"logo.bmp\"\n",
+        )
+        .unwrap();
+        let err = Config::load(Some(&path)).unwrap_err().to_string();
+        assert!(
+            err.contains("site.favicon") && err.contains("larger"),
+            "{err}"
+        );
+        assert!(
+            err.contains("site.logo") && err.contains("unsupported"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn assets_dir_must_be_a_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("assets")).unwrap();
+        std::fs::write(dir.path().join("file"), "").unwrap();
+        let path = dir.path().join("ferrenium.toml");
+        std::fs::write(&path, "[site]\nassets_dir = \"assets\"\n").unwrap();
+        let c = Config::load(Some(&path)).unwrap();
+        assert_eq!(
+            c.site.assets_dir,
+            Some(dir.path().join("assets").canonicalize().unwrap())
+        );
+        for bad in ["file", "missing"] {
+            std::fs::write(&path, format!("[site]\nassets_dir = {bad:?}\n")).unwrap();
+            let err = Config::load(Some(&path)).unwrap_err().to_string();
+            assert!(err.contains("site.assets_dir"), "{err}");
+        }
+    }
+
+    #[test]
+    fn accent_colors() {
+        assert_eq!(parse_hex_color("#d71921"), Some([215, 25, 33]));
+        assert_eq!(parse_hex_color("#fA0"), Some([255, 170, 0]));
+        for bad in ["d71921", "#d7192", "#gggggg", "red", "#+1+2+3"] {
+            assert_eq!(parse_hex_color(bad), None, "{bad}");
+        }
+        let c = finish("[ui]\naccent = \" #FF5500 \"\n").unwrap();
+        assert_eq!(c.ui.accent.as_deref(), Some("#ff5500"));
+        let err = finish("[ui]\naccent = \"red; } body {\"\n").unwrap_err();
+        assert!(err.to_string().contains("ui.accent"), "{err}");
     }
 }

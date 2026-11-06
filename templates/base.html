@@ -14,14 +14,17 @@
 {%- if let Some(feed) = layout.feed %}
 <link rel="alternate" type="application/atom+xml" title="Commits" href="{{ feed }}">
 {%- endif %}
-<link rel="icon" href="{{ layout.static_base }}icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{{ layout.favicon.0 }}" type="{{ layout.favicon.1 }}">
 <script src="{{ layout.static_base }}js/theme.js"></script>
 <script src="{{ layout.static_base }}js/app.js" defer></script>
 {%- block head %}{% endblock %}
 </head>
 <body>
 <header class="topbar shell">
-  <a class="topbar-home label" href="{{ layout.base }}">{{ layout.site_title }}</a>
+  <a class="topbar-home" href="{{ layout.base }}">
+    {%- if let Some(logo) = layout.logo %}<img class="topbar-logo" src="{{ logo }}" alt="">{% endif -%}
+    <span class="label">{{ layout.site_title }}</span>
+  </a>
   <div class="segmented theme-switch" role="group" aria-label="Color theme">
     <button type="button" data-theme-choice="auto" aria-pressed="false">Auto</button>
     <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>

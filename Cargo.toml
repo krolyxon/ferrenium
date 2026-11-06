@@ -32,7 +32,7 @@ sd-notify = "0.5.0"
 serde = { version = "1.0.229", features = ["derive"] }
 syntect = { version = "5.3", default-features = false, features = ["parsing", "html", "regex-fancy"] }
 thiserror = "2.0.21"
-tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time", "process", "io-util"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time", "process", "io-util", "fs"] }
 tokio-util = { version = "0.7", features = ["io", "io-util"] }
 toml = "1.2.0"
 tower = { version = "0.5.3", features = ["util"] }

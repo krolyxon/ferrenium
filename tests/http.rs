@@ -189,6 +189,101 @@ async fn site_css_carries_code_font_and_custom_css() {
 }
 
 #[tokio::test]
+async fn site_favicon_logo_and_accent() {
+    let (_, _, body) = get(&app_with("").0, "/").await;
+    assert!(body.contains("icons/favicon.svg\" type=\"image/svg+xml\""));
+    assert!(!body.contains("topbar-logo"));
+
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("icon.ico"), b"ICO").unwrap();
+    std::fs::write(dir.path().join("logo.svg"), b"<svg/>").unwrap();
+    let (app, _) = app_with(&format!(
+        "[site]\nfavicon = {:?}\nlogo = {:?}\n[ui]\naccent = \"#0a0\"\n",
+        dir.path().join("icon.ico"),
+        dir.path().join("logo.svg"),
+    ));
+    let (_, _, body) = get(&app, "/").await;
+    let link = |prefix: &str| {
+        body.split('"')
+            .find(|s| s.starts_with(prefix))
+            .unwrap_or_else(|| panic!("no {prefix} link in page"))
+            .to_string()
+    };
+
+    assert!(body.contains("type=\"image/x-icon\""));
+    let (status, headers, icon) = get(&app, &link("/-/favicon?v=")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers[header::CONTENT_TYPE], "image/x-icon");
+    assert_eq!(icon, "ICO");
+
+    assert!(body.contains("class=\"topbar-logo\""));
+    let (status, headers, logo) = get(&app, &link("/-/logo?v=")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers[header::CONTENT_TYPE], "image/svg+xml");
+    assert!(headers.contains_key(header::CONTENT_SECURITY_POLICY));
+    assert_eq!(logo, "<svg/>");
+
+    let (_, _, css) = get(&app, &link("/-/site.css?v=")).await;
+    assert!(css.contains("--accent: #0a0; --accent-subtle: rgba(0, 170, 0, 0.15);"));
+
+    let (app, _) = app_with("");
+    assert_eq!(get(&app, "/-/favicon").await.0, StatusCode::NOT_FOUND);
+    assert_eq!(get(&app, "/-/logo").await.0, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn site_assets_dir() {
+    let root = tempfile::tempdir().unwrap();
+    let assets = root.path().join("assets");
+    std::fs::create_dir_all(assets.join("img")).unwrap();
+    std::fs::write(assets.join("img/bg.png"), b"PNG").unwrap();
+    std::fs::write(assets.join(".hidden.png"), b"x").unwrap();
+    std::fs::write(assets.join("page.html"), b"<p>").unwrap();
+    std::fs::write(root.path().join("secret.png"), b"secret").unwrap();
+    std::os::unix::fs::symlink(root.path().join("secret.png"), assets.join("escape.png")).unwrap();
+    std::os::unix::fs::symlink(assets.join("img/bg.png"), assets.join("alias.png")).unwrap();
+
+    let (app, _) = app_with(&format!("[site]\nassets_dir = {assets:?}\n"));
+    let (status, headers, body) = get(&app, "/-/site/img/bg.png").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers[header::CONTENT_TYPE], "image/png");
+    assert_eq!(headers[header::CACHE_CONTROL], "no-cache");
+    assert_eq!(body, "PNG");
+    assert_eq!(get(&app, "/-/site/alias.png").await.2, "PNG");
+
+    let etag = headers[header::ETAG].clone();
+    let res = app
+        .clone()
+        .oneshot(
+            Request::get("/-/site/img/bg.png")
+                .header(header::IF_NONE_MATCH, etag)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::NOT_MODIFIED);
+
+    for path in [
+        "/-/site/escape.png",
+        "/-/site/.hidden.png",
+        "/-/site/page.html",
+        "/-/site/img/../../secret.png",
+        "/-/site/img/%2e%2e/%2e%2e/secret.png",
+        "/-/site/missing.png",
+        "/-/site/img",
+    ] {
+        assert_eq!(get(&app, path).await.0, StatusCode::NOT_FOUND, "{path}");
+    }
+
+    let (app, _) = app_with("");
+    assert_eq!(
+        get(&app, "/-/site/img/bg.png").await.0,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
 async fn compression_skips_fonts() {
     let (app, state) = app_with("");
     let hash = state.assets.hash().to_string();

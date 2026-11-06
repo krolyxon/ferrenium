@@ -8,6 +8,9 @@ Pages: repo index, summary + README, tree, file (highlighted), raw, log
 finder, `.tar.gz`/`.zip` snapshots, Atom feed. `git clone` over HTTPS
 (read-only).
 
+Themeable without rebuilding: your own stylesheet, images and fonts, plus a
+favicon, logo and accent color (see [Appearance](#appearance)).
+
 ## Install
 
 On a Linux host with systemd (x86_64 or aarch64, glibc 2.28+):
@@ -92,6 +95,71 @@ Per-repository metadata comes from the first source that sets it:
 ```sh
 sudo -u git git -C /home/git/secret.git config ferrenium.hidden true
 ```
+
+### Appearance
+
+These keys are optional. Files are read when the config is loaded or reloaded,
+and relative paths are resolved against the config file's directory, e.g.
+`/etc/ferrenium/`.
+
+| Key | |
+|---|---|
+| `site.title` | name in the top bar and page titles |
+| `site.favicon` | `.ico`, `.png`, `.svg`, `.webp`, `.gif` or `.jpg`, up to 1 MiB |
+| `site.logo` | image shown before the title in the top bar (same formats) |
+| `site.custom_css` | stylesheet loaded after the built-in one |
+| `site.assets_dir` | directory of images, fonts and stylesheets the custom CSS can load |
+| `site.header` / `site.footer` | HTML inserted below the top bar / in the footer |
+| `ui.theme` | default theme: `auto`, `dark` or `light` |
+| `ui.accent` | accent color as hex, e.g. `"#d71921"` |
+| `ui.code_font` | font family for code (must be installed on the client or loaded by `custom_css`) |
+
+The custom stylesheet overrides the built-in one, so it only needs the rules
+you want to change: design tokens, buttons, backgrounds, layout. Files in
+`assets_dir` are served at `/-/site/` (images, fonts and `.css` only; hidden
+files and paths leading outside the directory are refused), and the
+stylesheet refers to them with relative URLs:
+
+```toml
+[site]
+custom_css = "style.css"     # /etc/ferrenium/style.css
+assets_dir = "assets"        # /etc/ferrenium/assets/
+```
+
+```css
+@font-face { font-family: "Inter"; src: url("site/inter.woff2") format("woff2"); }
+:root { --font-body: "Inter", sans-serif; --interactive: light-dark(#0b57d0, #8ab4f8); }
+body { background: url("site/bg.jpg") center / cover fixed; }
+.segmented { border-radius: 4px; }
+```
+
+Edits to the stylesheet, favicon and logo need `systemctl reload ferrenium`;
+files in `assets_dir` are read on each request. Images from other `https://`
+sites work too, but fonts must come from `assets_dir` (the content security
+policy allows only same-origin fonts). Inline `<script>`/`<style>` in
+`header`/`footer` is blocked for the same reason; put styles in `custom_css`.
+
+Most of the look is driven by these CSS variables, so overriding a few of
+them on `:root` goes a long way. Colors are written as
+`light-dark(LIGHT, DARK)` to follow the theme switch; a single color applies
+to both themes.
+
+| Variable | Used for |
+|---|---|
+| `--black` | page background |
+| `--surface`, `--surface-raised` | panels, menus, code blocks |
+| `--border`, `--border-visible` | hairlines, button and field outlines |
+| `--text-display`, `--text-primary`, `--text-secondary`, `--text-disabled` | text, brightest to dimmest; syntax highlighting uses the same scale |
+| `--accent`, `--accent-subtle` | active markers, highlights and removed lines in diffs (`ui.accent` sets both) |
+| `--interactive` | links |
+| `--success` | added lines in diffs |
+| `--error` | `[ERROR: …]` messages |
+| `--font-body`, `--font-mono`, `--font-display`, `--font-code` | type families |
+| `--page-max`, `--gutter` | column width and side padding |
+
+The full list is in [`assets/css/tokens.css`](assets/css/tokens.css). For
+anything else, use the browser's inspector to find the element's class and
+override its rules.
 
 ### Limits
 

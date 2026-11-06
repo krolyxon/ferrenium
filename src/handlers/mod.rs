@@ -40,6 +40,10 @@ pub struct Layout {
     pub site_css: Option<String>,
     pub header: Option<Arc<str>>,
     pub footer: Option<Arc<str>>,
+    /// Favicon URL and media type: `site.favicon` or the built-in icon.
+    pub favicon: (String, &'static str),
+    /// Versioned URL of `site.logo`.
+    pub logo: Option<String>,
     pub version: &'static str,
     /// Atom feed advertised in `<head>`.
     pub feed: Option<String>,
@@ -50,8 +54,21 @@ impl Layout {
     pub fn new(state: &AppState, config: &Config, title: Option<&str>) -> Self {
         let base = config.server.base_path.clone();
         let site_title = config.site.title.clone();
+        let static_base = format!("{base}-/static/{}/", state.assets.hash());
         Layout {
-            static_base: format!("{base}-/static/{}/", state.assets.hash()),
+            favicon: match &config.custom.favicon {
+                Some(icon) => (
+                    format!("{base}-/favicon?v={}", icon.version),
+                    icon.content_type,
+                ),
+                None => (format!("{static_base}icons/favicon.svg"), "image/svg+xml"),
+            },
+            logo: config
+                .custom
+                .logo
+                .as_ref()
+                .map(|logo| format!("{base}-/logo?v={}", logo.version)),
+            static_base,
             site_css: assets::site_css_version(config).map(|v| format!("{base}-/site.css?v={v}")),
             page_title: match title {
                 Some(t) => format!("{t} · {site_title}"),
