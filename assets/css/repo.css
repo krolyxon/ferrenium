@@ -30,8 +30,11 @@
   white-space: nowrap;
 }
 
+/* margin-left: auto keeps the picker at the right edge when the bar wraps
+   (narrow screens), so the right-anchored menu opens on screen. */
 .ref-picker {
   position: relative;
+  margin-left: auto;
 }
 
 .ref-picker summary {
